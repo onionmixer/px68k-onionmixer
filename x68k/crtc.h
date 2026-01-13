@@ -3,8 +3,9 @@
 
 #include "common.h"
 
-#define	VSYNC_HIGH	180310L
-#define	VSYNC_NORM	162707L
+#define	VSYNC_HIGH	180310L		// 31kHz mode
+#define	VSYNC_24K	172800L		// 24kHz mode
+#define	VSYNC_NORM	162707L		// 15kHz mode
 
 extern	BYTE	CRTC_Regs[48];
 extern	BYTE	CRTC_Mode;
@@ -22,11 +23,13 @@ extern	DWORD	CRTC_FastClrLine;
 extern	WORD	CRTC_FastClrMask;
 extern	BYTE	CRTC_VStep;
 extern  int		HSYNC_CLK;
+extern	WORD	VLINE_TOTAL;
 
 extern	DWORD	GrphScrollX[];
 extern	DWORD	GrphScrollY[];
 
 void CRTC_Init(void);
+DWORD CRTC_GetVSyncClock(void);
 
 void CRTC_RasterCopy(void);
 

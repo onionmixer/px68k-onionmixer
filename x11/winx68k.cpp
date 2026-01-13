@@ -326,7 +326,7 @@ void WinX68k_Exec(void)
 
 	vline = 0;
 	clk_count = -ICount;
-	clk_total = (CRTC_Regs[0x29] & 0x10) ? VSYNC_HIGH : VSYNC_NORM;
+	clk_total = CRTC_GetVSyncClock();
 	if (Config.XVIMode == 1) {
 		clk_total = (clk_total*16)/10;
 		clkdiv = 16;

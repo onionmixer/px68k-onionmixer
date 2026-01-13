@@ -22,7 +22,7 @@ WORD Timer_GetCount(void)
 {
 	DWORD ticknow = timeGetTime();
 	DWORD dif = ticknow-tick;
-	DWORD TIMEBASE = ((CRTC_Regs[0x29]&0x10)?VSYNC_HIGH:VSYNC_NORM);
+	DWORD TIMEBASE = CRTC_GetVSyncClock();
 
 	timercnt += dif*10000;
 	tick = ticknow;

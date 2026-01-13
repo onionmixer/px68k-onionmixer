@@ -41,6 +41,33 @@ static WORD FastClearMask[16] = {
 
 
 // -----------------------------------------------------------------------
+//   Get VSYNC clock based on display mode (15kHz/24kHz/31kHz)
+//   X68000 supports three horizontal scan frequencies:
+//   - 15kHz: Standard resolution (256 lines, TV compatible)
+//   - 24kHz: Medium resolution (512 lines interlaced)
+//   - 31kHz: High resolution (512 lines progressive, VGA compatible)
+// -----------------------------------------------------------------------
+DWORD CRTC_GetVSyncClock(void)
+{
+	// Check HF (High Frequency) bit in CRTC register 0x29
+	if (CRTC_Regs[0x29] & 0x10) {
+		// HF bit set: 31kHz mode
+		return VSYNC_HIGH;
+	}
+
+	// HF bit clear: check line count to distinguish 15kHz from 24kHz
+	// 24kHz mode typically has >400 total lines (interlaced 512-line display)
+	// 15kHz mode typically has ~262 lines (NTSC-like)
+	if (VLINE_TOTAL > 400) {
+		return VSYNC_24K;
+	}
+
+	// Default: 15kHz mode
+	return VSYNC_NORM;
+}
+
+
+// -----------------------------------------------------------------------
 //   らすたーこぴー
 // -----------------------------------------------------------------------
 void CRTC_RasterCopy(void)
@@ -361,7 +388,7 @@ void FASTCALL CRTC_Write(DWORD adr, BYTE data)
 		case 0x08:
 		case 0x09:
 			VLINE_TOTAL = (((WORD)CRTC_Regs[8]<<8)+CRTC_Regs[9]);
-			HSYNC_CLK = ((CRTC_Regs[0x29]&0x10)?VSYNC_HIGH:VSYNC_NORM)/VLINE_TOTAL;
+			HSYNC_CLK = CRTC_GetVSyncClock()/VLINE_TOTAL;
 			break;
 		case 0x0c:
 		case 0x0d:
@@ -404,7 +431,7 @@ void FASTCALL CRTC_Write(DWORD adr, BYTE data)
 			TVRAM_SetAllDirty();
 			break;
 		case 0x29:
-			HSYNC_CLK = ((CRTC_Regs[0x29]&0x10)?VSYNC_HIGH:VSYNC_NORM)/VLINE_TOTAL;
+			HSYNC_CLK = CRTC_GetVSyncClock()/VLINE_TOTAL;
 			TextDotY = CRTC_VEND-CRTC_VSTART;
 			if ((CRTC_Regs[0x29]&0x14)==0x10)
 			{
