@@ -415,7 +415,7 @@ int WinDraw_Init(void)
 #else
 
 #ifdef USE_SDLGFX
-	sdl_rgbsurface = SDL_CreateRGBSurface(SDL_SWSURFACE, 800, 600, 16, WinDraw_Pal16R, WinDraw_Pal16G, WinDraw_Pal16B, 0);
+	sdl_rgbsurface = SDL_CreateRGBSurface(0, 800, 600, 16, WinDraw_Pal16R, WinDraw_Pal16G, WinDraw_Pal16B, 0);
 
 	if (sdl_rgbsurface == 0) {
 		puts("ScrBuf allocate failed");
@@ -1688,7 +1688,7 @@ int WinDraw_MenuInit(void)
 	set_mfs(24);
 #else
 
-	menu_surface = SDL_CreateRGBSurface(SDL_SWSURFACE, 800, 600, 16, WinDraw_Pal16R, WinDraw_Pal16G, WinDraw_Pal16B, 0);
+	menu_surface = SDL_CreateRGBSurface(0, 800, 600, 16, WinDraw_Pal16R, WinDraw_Pal16G, WinDraw_Pal16B, 0);
 
 	if (!menu_surface)
 		return FALSE;
