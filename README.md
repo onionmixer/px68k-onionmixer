@@ -19,6 +19,7 @@
 11. SDL2 오디오 출력 수정 (ADPCM/OPM)
 12. 데스크톱 마우스 지원 추가
 13. UTF-8 파일명 표시 지원 (iconv를 통한 Shift-JIS 변환)
+14. Host Serial Port 연결 지원 (RS-232C)
 
 몇몇 부분은 mame code 를 참고해서 개선되었습니다.
 
@@ -206,6 +207,33 @@ FDD와 동일합니다. SASI HDD 설정용입니다.
 
 > HDD를 2대 이상 연결하는 경우, switch.x로 HD_MAX 값을 확인하고 필요시 변경하세요. 3대 이상 연결하려면 config 파일을 직접 편집하세요.
 
+### [SERIAL] (테스트 필요)
+
+X68000의 RS-232C 포트를 호스트 PC의 시리얼 포트에 연결합니다.
+
+| 항목 | 설명 |
+|------|------|
+| -- disconnect -- | 현재 연결 해제 (연결 시 현재 장치명 표시) |
+| /dev/ttyUSBx | USB-Serial 어댑터 장치 |
+| /dev/ttySx | 내장 시리얼 포트 |
+| /dev/ttyACMx | USB ACM 장치 (Arduino 등) |
+| NOTHING | 사용 가능한 시리얼 포트 없음 |
+
+**특징**:
+- 메뉴 진입 시 호스트의 시리얼 장치를 동적으로 검색
+- 설정 파일에 저장되지 않음 (매번 수동 연결 필요)
+- 시리얼 미연결 시에도 에뮬레이터 정상 동작
+
+**지원 장치**:
+- `/dev/ttyS*`: 내장 시리얼 포트
+- `/dev/ttyUSB*`: USB-Serial 어댑터 (FTDI, CH340 등)
+- `/dev/ttyACM*`: USB CDC ACM 장치
+
+> **참고**: 시리얼 장치에 접근하려면 사용자가 `dialout` 그룹에 속해야 할 수 있습니다:
+> ```bash
+> sudo usermod -a -G dialout $USER
+> ```
+
 ### [Frame Skip]
 
 프레임 스킵을 설정합니다:
@@ -246,6 +274,7 @@ FDD와 동일합니다. SASI HDD 설정용입니다.
 - 판타지 존, 사라만다 슈팅 사운드 수정
 - 메뉴/소프트키 키 리피트
 - 성능 개선
+- 시리얼 포트 기능 실기 테스트 (RS-232C 통신 검증)
 
 ## 5. 면책 조항
 

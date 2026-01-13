@@ -83,7 +83,7 @@ CXXLDOPTIONS= $(CXXDEBUGFLAGS)
 
 CPUOBJS= x68k/d68k.o m68000/c68k.o m68000/m68000.o
 
-X68KOBJS= x68k/adpcm.o x68k/bg.o x68k/crtc.o x68k/dmac.o x68k/fdc.o x68k/fdd.o x68k/disk_d88.o x68k/disk_dim.o x68k/disk_xdf.o x68k/gvram.o x68k/ioc.o x68k/irqh.o x68k/mem_wrap.o x68k/mercury.o x68k/mfp.o x68k/palette.o x68k/midi.o x68k/pia.o x68k/rtc.o x68k/sasi.o x68k/scc.o x68k/scsi.o x68k/scsi_bus.o x68k/scsi_spc.o x68k/scsi_hdd.o x68k/sram.o x68k/sysport.o x68k/tvram.o
+X68KOBJS= x68k/adpcm.o x68k/bg.o x68k/crtc.o x68k/dmac.o x68k/fdc.o x68k/fdd.o x68k/disk_d88.o x68k/disk_dim.o x68k/disk_xdf.o x68k/gvram.o x68k/ioc.o x68k/irqh.o x68k/mem_wrap.o x68k/mercury.o x68k/mfp.o x68k/palette.o x68k/midi.o x68k/pia.o x68k/rtc.o x68k/sasi.o x68k/scc.o x68k/serial.o x68k/scsi.o x68k/scsi_bus.o x68k/scsi_spc.o x68k/scsi_hdd.o x68k/sram.o x68k/sysport.o x68k/tvram.o
 
 FMGENOBJS= fmgen/fmgen.o fmgen/fmg_wrap.o fmgen/file.o fmgen/fmtimer.o fmgen/opm.o fmgen/opna.o fmgen/psg.o
 

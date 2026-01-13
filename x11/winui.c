@@ -59,6 +59,7 @@
 #include "crtc.h"
 #include "pia.h"
 #include "scc.h"
+#include "serial.h"
 #include "midi.h"
 #include "adpcm.h"
 #include "mercury.h"
@@ -100,15 +101,15 @@ struct menu_flist mfl;
 
 /***** menu items *****/
 
-#define MENU_NUM 13
+#define MENU_NUM 14
 #define MENU_WINDOW 7
 
-int mval_y[] = {0, 0, 0, 0, 0, 0, 0, 0, 2, 1, 0, 1, 1};
+int mval_y[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1, 0, 1, 1};
 
-enum menu_id {M_SYS, M_JOM, M_FD0, M_FD1, M_HD0, M_HD1, M_FS, M_SR, M_VKS, M_VBS, M_HJS, M_NW, M_JK};
+enum menu_id {M_SYS, M_JOM, M_FD0, M_FD1, M_HD0, M_HD1, M_SER, M_FS, M_SR, M_VKS, M_VBS, M_HJS, M_NW, M_JK};
 
 // Max # of characters is 15.
-char menu_item_key[][15] = {"SYSTEM", "Joy/Mouse", "FDD0", "FDD1", "HDD0", "HDD1", "Frame Skip", "Sound Rate", "VKey Size", "VBtn Swap", "HwJoy Setting", "No Wait Mode", "JoyKey", "uhyo", ""};
+char menu_item_key[][15] = {"SYSTEM", "Joy/Mouse", "FDD0", "FDD1", "HDD0", "HDD1", "SERIAL", "Frame Skip", "Sound Rate", "VKey Size", "VBtn Swap", "HwJoy Setting", "No Wait Mode", "JoyKey", "uhyo", ""};
 
 // Max # of characters is 30.
 // Max # of items including terminater `""' in each line is 15.
@@ -119,6 +120,7 @@ char menu_items[][15][30] = {
 	{"dummy", "EJECT", ""},
 	{"dummy", "EJECT", ""},
 	{"dummy", "EJECT", ""},
+	{"-- disconnect --", "", "", "", "", "", "", "", "", "", "", "", "", "", ""},  /* SERIAL - populated dynamically */
 	{"Auto Frame Skip", "Full Frame", "1/2 Frame", "1/3 Frame", "1/4 Frame", "1/5 Frame", "1/6 Frame", "1/8 Frame", "1/16 Frame", "1/32 Frame", "1/60 Frame", ""},
 	{"No Sound", "11025Hz", "22050Hz", "44100Hz", "48000Hz", ""},
 	{"Ultra Huge", "Super Huge", "Huge", "Large", "Medium", "Small", ""},
@@ -131,6 +133,8 @@ char menu_items[][15][30] = {
 static void menu_system(int v);
 static void menu_joy_or_mouse(int v);
 static void menu_create_flist(int v);
+static void menu_serial(int v);
+static void menu_serial_populate(void);
 static void menu_frame_skip(int v);
 static void menu_sound_rate(int v);
 static void menu_vkey_size(int v);
@@ -145,12 +149,13 @@ struct _menu_func {
 };
 
 struct _menu_func menu_func[] = {
-	{menu_system, 0}, 
+	{menu_system, 0},
 	{menu_joy_or_mouse, 1},
 	{menu_create_flist, 0},
 	{menu_create_flist, 0},
 	{menu_create_flist, 0},
 	{menu_create_flist, 0},
+	{menu_serial, 0},
 	{menu_frame_skip, 1},
 	{menu_sound_rate, 1},
 	{menu_vkey_size, 1},
@@ -235,6 +240,10 @@ WinUI_Init(void)
 
 	mval_y[M_NW] = Config.NoWaitMode;
 	mval_y[M_JK] = Config.JoyKey;
+
+	/* Initialize serial subsystem and populate menu dynamically */
+	Serial_Init();
+	menu_serial_populate();
 
 #if defined(ANDROID)
 #define CUR_DIR_STR winx68k_dir
@@ -348,6 +357,64 @@ static void menu_joy_or_mouse(int v)
 	Mouse_StartCapture(v == 1);
 }
 
+/* Serial device list for menu */
+static char serial_devices[MAX_SERIAL_DEVICES][SERIAL_DEVICE_PATH_LEN];
+static int serial_device_count = 0;
+
+static void menu_serial_populate(void)
+{
+	int i;
+	const char *current_dev;
+
+	/* Enumerate available serial devices */
+	serial_device_count = Serial_EnumDevices(serial_devices, MAX_SERIAL_DEVICES);
+
+	/* First item is always disconnect option or status */
+	if (Serial_IsOpen()) {
+		current_dev = Serial_GetCurrentDevice();
+		snprintf(menu_items[M_SER][0], 30, "[%s]", current_dev ? current_dev : "connected");
+	} else {
+		strcpy(menu_items[M_SER][0], "-- disconnect --");
+	}
+
+	/* Add available devices or show NOTHING if none available */
+	if (serial_device_count == 0) {
+		/* No serial devices found */
+		strcpy(menu_items[M_SER][1], "NOTHING");
+		menu_items[M_SER][2][0] = '\0';
+	} else {
+		/* List available devices */
+		for (i = 0; i < serial_device_count && i < 14; i++) {
+			strncpy(menu_items[M_SER][i + 1], serial_devices[i], 29);
+			menu_items[M_SER][i + 1][29] = '\0';
+		}
+		/* Terminate the list */
+		menu_items[M_SER][serial_device_count + 1][0] = '\0';
+	}
+}
+
+static void menu_serial(int v)
+{
+	if (v == 0) {
+		/* Disconnect */
+		Serial_Close();
+		printf("Serial: Disconnected\n");
+	} else if (serial_device_count == 0) {
+		/* No devices available - "NOTHING" was selected, do nothing */
+		printf("Serial: No devices available\n");
+	} else if (v > 0 && v <= serial_device_count) {
+		/* Connect to selected device */
+		const char *device = serial_devices[v - 1];
+		if (Serial_Open(device) == 0) {
+			printf("Serial: Connected to %s\n", device);
+		} else {
+			printf("Serial: Failed to connect to %s\n", device);
+		}
+	}
+
+	/* Refresh the menu */
+	menu_serial_populate();
+}
 
 static void upper(char *s)
 {
@@ -679,6 +746,10 @@ int WinUI_Menu(int first)
 		int drv, y;
 		switch (menu_state) {
 		case ms_key:
+			/* Dynamically refresh serial devices when entering SERIAL menu */
+			if (mkey_y == M_SER) {
+				menu_serial_populate();
+			}
 			menu_state = ms_value;
 			menu_redraw = 1;
 			break;
