@@ -18,20 +18,6 @@ PX68K ( Portable (x)keropi PRO-68K )
   SDL2 2.x
   SDL2_gfx
 
-・Android
-
-  SDL2-2.x (http://www.libsdl.org/ から入手)
-  Android NDK
-  Android SDK
-  OpenGL ES 1.1
-
-・Mac OS X
-
-  Mac OS X 10.15 以降
-  SDL2
-  SDL2_gfx
-  Xcode (GUIは使わずMakefileを用いてコマンドからmake)
-
 
 ■コンパイルについて
 
@@ -47,39 +33,6 @@ PX68K ( Portable (x)keropi PRO-68K )
 
     (ばりばりソース修正とコンパイルをする方は、make depend で
      あらかじめ Makefile に依存関係情報を付与してください)
-
-
-・Android
-
-  * px68k-android/jni/ にSDLという名前でSDL2のディレクトリをコピー
-    するか、シンボリックリンクをはってください。
-
-  * Android.mk の LOCAL_C_INCLUDES で、ndkのディレクトリを指定している
-    箇所は、自分の環境にあわせて書き直すこと
-
-  * まずはnative codeのコンパイル
-
-    px68k-android/jni/srcディレクトリに移動してから、
-    $ ndk-build
-
-  * Eclipseへのプロジェクトの登録
-
-    ・[File] -> [New] -> [Other]
-       Android Project from Existing Code を選択して[Next]
-
-    ・[Root Directory:]にandroid-projectのディレクトリを指定する
-      (例) /home/user/src/px68k/px68k-android
-
-    ・[Projects:]の[New Project Name]のSDLActivityを二つともPX68Kに変更
-
-    ・[Finish] をクリック
-
-  * 次にapkの作成
-
-    px68k-androidディレクトリに移動してから、
-    $ ant release (またはant debug)
-
-    で、px68k-android/bin/ に .apk ファイルが作成される
 
 
 ・Raspberry Pi (Raspbian) について
@@ -99,29 +52,6 @@ PX68K ( Portable (x)keropi PRO-68K )
     $ cd src/px68k
     $ git pull http://github.com/hissorii/px68k
     $ make clean ; make
-
-
-・Mac OS X 版
-
-  SDL2 はソースを入手してコンパイルします。
-  SDL2 のソースを解凍したディレクトリに移動し、以下を実行します。
-
-  $ ./configure
-  $ make
-  $ sudo make install
-
-  次にSDL2_gfx のコンパイルをします。
-
-  $ ./configure
-  $ make
-  $ sudo make install
-
-  ここまでで、/usr/local/ 以下に SDL2, SDL2_gfx が
-  インストールされます。
-
-  次に px68k のディレクトリに移動し、以下を実行してください。
-
-  $ make
 
 
 ■コマンドラインオプション

@@ -922,6 +922,23 @@ int main(int argc, char *argv[])
 				}
 				break;
 			case SDL_MOUSEMOTION:
+				if (Config.JoyOrMouse && menu_mode == menu_out) {
+					Mouse_Event(0, (float)ev.motion.xrel * Config.MouseSpeed / 10.0f,
+					               (float)ev.motion.yrel * Config.MouseSpeed / 10.0f);
+				}
+				break;
+			case SDL_MOUSEBUTTONDOWN:
+			case SDL_MOUSEBUTTONUP:
+				if (Config.JoyOrMouse && menu_mode == menu_out) {
+					int button = 0;
+					if (ev.button.button == SDL_BUTTON_LEFT)
+						button = 1;
+					else if (ev.button.button == SDL_BUTTON_RIGHT)
+						button = 2;
+					if (button) {
+						Mouse_Event(button, (ev.type == SDL_MOUSEBUTTONDOWN) ? 1.0f : 0.0f, 0);
+					}
+				}
 				break;
 #if defined(ANDROID) || TARGET_OS_IPHONE
 			case SDL_APP_WILLENTERBACKGROUND:

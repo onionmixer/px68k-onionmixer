@@ -48,6 +48,7 @@ extern "C" {
 
 void Error(const char* s);
 void p6logd(const char *fmt, ...);
+int utf8_to_sjis(const char *utf8_str, char *sjis_str, size_t sjis_size);
 
 #ifdef __cplusplus
 }

@@ -34,6 +34,8 @@ float	MouseDX = 0;
 float	MouseDY = 0;
 BYTE	MouseStat = 0;
 BYTE	MouseSW = 0;
+int	MousePosX = 0;
+int	MousePosY = 0;
 
 POINT	CursorPos;
 int	mousex = 0, mousey = 0;

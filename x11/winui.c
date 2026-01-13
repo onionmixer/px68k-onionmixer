@@ -438,10 +438,15 @@ static void menu_create_flist(int v)
 			}
 		}
 
-		strcpy(mfl.name[i], n);
+		// Convert UTF-8 filename to Shift-JIS for display
+		if (utf8_to_sjis(n, mfl.name[i], MAX_PATH) != 0) {
+			// Fallback to original if conversion fails
+			strncpy(mfl.name[i], n, MAX_PATH - 1);
+			mfl.name[i][MAX_PATH - 1] = '\0';
+		}
 		// set 1 if this is directory
 		mfl.type[i] = S_ISDIR(buf.st_mode)? 1 : 0;
-		printf("%s 0x%x\n", n, buf.st_mode);
+		printf("%s 0x%x\n", mfl.name[i], buf.st_mode);
 	}
 
 	closedir(dp);
