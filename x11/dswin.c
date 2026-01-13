@@ -192,8 +192,6 @@ sdlaudio_callback(void *userdata, unsigned char *stream, int len)
 
 	now = timeGetTime();
 
-	//p6logd("tdiff %4d : len %d ", now - bef, len);
-
 #ifdef PSP
 	rate = (int)userdata;
 #endif
@@ -271,7 +269,7 @@ cb_start:
 
 	// SDL2.0ではstream bufferのクリアが必要
 	memset(stream, 0, len);
-	SDL_MixAudio(stream, buf, len, SDL_MIX_MAXVOLUME);
+	SDL_MixAudioFormat(stream, buf, AUDIO_S16SYS, len, SDL_MIX_MAXVOLUME);
 
 	bef = now;
 }
