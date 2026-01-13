@@ -562,13 +562,13 @@ int WinUI_Menu(int first)
 	reset_joy_downstate();
 
 #ifndef PSP
-	if (menu_state == ms_hwjoy_set && sdl_joy) {
+	if (menu_state == ms_hwjoy_set && sdl_joy[0]) {
 		int y;
 		y = mval_y[mkey_y];
 		SDL_JoystickUpdate();
 		if (y <= 1) {
-			for (i = 0; i < SDL_JoystickNumAxes(sdl_joy); i++) {
-				n = SDL_JoystickGetAxis(sdl_joy, i);
+			for (i = 0; i < SDL_JoystickNumAxes(sdl_joy[0]); i++) {
+				n = SDL_JoystickGetAxis(sdl_joy[0], i);
 				p6logd("axis%d:%d", i, n);
 				if (n < -JOYAXISPLAY || n > JOYAXISPLAY) {
 					Config.HwJoyAxis[y] = i;
@@ -578,8 +578,8 @@ int WinUI_Menu(int first)
 				}
 			}
 		} else if (y == 2) {
-			for (i = 0; i < SDL_JoystickNumHats(sdl_joy); i++) {
-				if (SDL_JoystickGetHat(sdl_joy, i)) {
+			for (i = 0; i < SDL_JoystickNumHats(sdl_joy[0]); i++) {
+				if (SDL_JoystickGetHat(sdl_joy[0], i)) {
 					Config.HwJoyHat = i;
 					menu_hwjoy_print(y);
 					pad_changed = 1;
@@ -587,8 +587,8 @@ int WinUI_Menu(int first)
 				}
 			}
 		} else {
-			for (i = 0; i < SDL_JoystickNumButtons(sdl_joy); i++) {
-				if (SDL_JoystickGetButton(sdl_joy, i)) {
+			for (i = 0; i < SDL_JoystickNumButtons(sdl_joy[0]); i++) {
+				if (SDL_JoystickGetButton(sdl_joy[0], i)) {
 					Config.HwJoyBtn[y - 3] = i;
 					menu_hwjoy_print(y);
 					pad_changed = 1;

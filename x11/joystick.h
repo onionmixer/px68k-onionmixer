@@ -37,7 +37,7 @@ typedef struct _vbtn_points {
 } VBTN_POINTS;
 #endif
 
-#define need_Vpad() (is_menu || Keyboard_IsSwKeyboard() || (!Config.JoyOrMouse && !sdl_joy && !sdl_gamecontroller))
+#define need_Vpad() (is_menu || Keyboard_IsSwKeyboard() || (!Config.JoyOrMouse && !sdl_joy[0] && !sdl_gamecontroller[0]))
 
 void Joystick_Init(void);
 void Joystick_Cleanup(void);
@@ -67,8 +67,9 @@ BYTE Joystick_get_vbtn_state(WORD n);
 
 extern BYTE JoyKeyState;
 #ifndef PSP
-extern SDL_Joystick *sdl_joy;
-extern SDL_GameController *sdl_gamecontroller;
+#define MAX_JOYSTICKS 2
+extern SDL_Joystick *sdl_joy[MAX_JOYSTICKS];
+extern SDL_GameController *sdl_gamecontroller[MAX_JOYSTICKS];
 #endif
 
 #endif
