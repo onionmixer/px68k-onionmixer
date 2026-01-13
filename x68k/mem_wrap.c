@@ -78,7 +78,7 @@ BYTE (FASTCALL *MemReadTable[])(DWORD) = {
 	rm_font, rm_font, rm_font, rm_font, rm_font, rm_font, rm_font, rm_font,
 	rm_font, rm_font, rm_font, rm_font, rm_font, rm_font, rm_font, rm_font,
 	rm_font, rm_font, rm_font, rm_font, rm_font, rm_font, rm_font, rm_font,
-/* SCSI の場合は rm_buserr になる？ */
+/* SCSI rm_buserr */
 	rm_ipl, rm_ipl, rm_ipl, rm_ipl, rm_ipl, rm_ipl, rm_ipl, rm_ipl,
 	rm_ipl, rm_ipl, rm_ipl, rm_ipl, rm_ipl, rm_ipl, rm_ipl, rm_ipl,
 	rm_ipl, rm_ipl, rm_ipl, rm_ipl, rm_ipl, rm_ipl, rm_ipl, rm_ipl,
@@ -106,7 +106,7 @@ void (FASTCALL *MemWriteTable[])(DWORD, BYTE) = {
 	SRAM_Write, SRAM_Write, SRAM_Write, SRAM_Write, SRAM_Write, SRAM_Write, SRAM_Write, SRAM_Write,
 	wm_buserr, wm_buserr, wm_buserr, wm_buserr, wm_buserr, wm_buserr, wm_buserr, wm_buserr,
 	wm_buserr, wm_buserr, wm_buserr, wm_buserr, wm_buserr, wm_buserr, wm_buserr, wm_buserr,
-/* ROMエリアへの書きこみは全てバスエラー */
+/* ROM */
 	wm_buserr, wm_buserr, wm_buserr, wm_buserr, wm_buserr, wm_buserr, wm_buserr, wm_buserr,
 	wm_buserr, wm_buserr, wm_buserr, wm_buserr, wm_buserr, wm_buserr, wm_buserr, wm_buserr,
 	wm_buserr, wm_buserr, wm_buserr, wm_buserr, wm_buserr, wm_buserr, wm_buserr, wm_buserr,
@@ -590,10 +590,8 @@ void
 BusError(DWORD adr, DWORD unknown)
 {
 
-	(void)adr;
 	(void)unknown;
 
-	printf("BusError: %d\n", adr);
 	BusErrHandling = 1;
 	//assert(0);
 }

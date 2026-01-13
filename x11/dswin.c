@@ -43,18 +43,18 @@ DWORD ratebase = 22050;
 long DSound_PreCounter = 0;
 BYTE sdlsndbuf[PCMBUF_SIZE];
 
-int audio_fd = -1;
-
 static void sdlaudio_callback(void *userdata, unsigned char *stream, int len);
 
 #ifndef NOSOUND
 #include	"SDL.h"
 #include	"SDL_audio.h"
 
+static SDL_AudioDeviceID audio_device_id = 0;
+
 int
 DSound_Init(unsigned long rate, unsigned long buflen)
 {
-	SDL_AudioSpec fmt;
+	SDL_AudioSpec fmt, obtained;
 	DWORD samples;
 
 	if (playing) {
@@ -62,13 +62,12 @@ DSound_Init(unsigned long rate, unsigned long buflen)
 	}
 
 	if (rate == 0) {
-		audio_fd = -1;
+		audio_device_id = 0;
 		return TRUE;
 	}
 
 	ratebase = rate;
 
-	// Linuxは2倍(SDL1.2)、Android(SDL2.0)は4倍のlenでcallbackされた。
 	// この値を小さくした方が音の遅延は少なくなるが負荷があがる
 	samples = 2048;
 
@@ -85,13 +84,15 @@ DSound_Init(unsigned long rate, unsigned long buflen)
 	fmt.samples = samples;
 	fmt.callback = sdlaudio_callback;
 #ifdef PSP
-	fmt.userdata = rate;
+	fmt.userdata = (void *)(uintptr_t)rate;
 #else
 	fmt.userdata = NULL;
 #endif
-	audio_fd = SDL_OpenAudio(&fmt, NULL);
-	if (audio_fd < 0) {
-		SDL_Quit();
+
+	// Use SDL2 modern audio device API
+	audio_device_id = SDL_OpenAudioDevice(NULL, 0, &fmt, &obtained, 0);
+	if (audio_device_id == 0) {
+		fprintf(stderr, "SDL_OpenAudioDevice failed: %s\n", SDL_GetError());
 		return FALSE;
 	}
 
@@ -102,25 +103,24 @@ DSound_Init(unsigned long rate, unsigned long buflen)
 void
 DSound_Play(void)
 {
-	if (audio_fd >= 0)
-		SDL_PauseAudio(0);
+	if (audio_device_id > 0)
+		SDL_PauseAudioDevice(audio_device_id, 0);
 }
 
 void
 DSound_Stop(void)
 {
-	if (audio_fd >= 0)
-		SDL_PauseAudio(1);
+	if (audio_device_id > 0)
+		SDL_PauseAudioDevice(audio_device_id, 1);
 }
 
 int
 DSound_Cleanup(void)
 {
 	playing = FALSE;
-	if (audio_fd >= 0) {
-		SDL_CloseAudio();
-		SDL_Quit();
-		audio_fd = -1;
+	if (audio_device_id > 0) {
+		SDL_CloseAudioDevice(audio_device_id);
+		audio_device_id = 0;
 	}
 	return TRUE;
 }
@@ -134,7 +134,7 @@ static void sound_send(int length)
 #else
 	rate = 0;
 #endif
-	SDL_LockAudio();
+	SDL_LockAudioDevice(audio_device_id);
 	ADPCM_Update((short *)pbwp, length, rate, pbsp, pbep);
 	OPM_Update((short *)pbwp, length, rate, pbsp, pbep);
 #ifndef	NO_MERCURY
@@ -151,7 +151,7 @@ static void sound_send(int length)
 		pbwp = pbsp + (pbwp - pbep);
 	}
 #endif
-	SDL_UnlockAudio();
+	SDL_UnlockAudioDevice(audio_device_id);
 }
 
 void FASTCALL DSound_Send0(long clock)
@@ -159,7 +159,7 @@ void FASTCALL DSound_Send0(long clock)
 	int length = 0;
 	int rate;
 
-	if (audio_fd < 0) {
+	if (audio_device_id == 0) {
 		return;
 	}
 
@@ -176,9 +176,7 @@ void FASTCALL DSound_Send0(long clock)
 
 static void FASTCALL DSound_Send(int length)
 {
-	int rate;
-
-	if (audio_fd < 0) {
+	if (audio_device_id == 0) {
 		return;
 	}
 	sound_send(length);
@@ -271,10 +269,8 @@ cb_start:
 		}
 	}
 
-#if SDL_VERSION_ATLEAST(2, 0, 0)	
 	// SDL2.0ではstream bufferのクリアが必要
 	memset(stream, 0, len);
-#endif
 	SDL_MixAudio(stream, buf, len, SDL_MIX_MAXVOLUME);
 
 	bef = now;

@@ -6,6 +6,7 @@ extern "C" {
 #ifdef USE_OGLES11
 #include <SDL_opengles.h>
 #endif
+#include <getopt.h>
 #include "common.h"
 #include "fileio.h"
 #include "timer.h"
@@ -17,7 +18,7 @@ extern "C" {
 #include "winx68k.h"
 #include "windraw.h"
 #include "winui.h"
-#include "../x68k/m68000.h" // xxx これはいずれいらなくなるはず
+#include "../x68k/m68000.h" // xxx
 #include "../m68000/m68000.h"
 #include "../x68k/memory.h"
 #include "mfp.h"
@@ -104,67 +105,18 @@ static int FrameSkipQueue = 0;
 };
 #endif
 
-#if SDL_VERSION_ATLEAST(2, 0, 0)
 SDL_Window *sdl_window;
 int realdisp_w, realdisp_h;
-#endif
 
 void
 WinX68k_SCSICheck(void)
 {
-	static const BYTE SCSIIMG[] = {
-		0x00, 0xfc, 0x00, 0x14,			// $fc0000 SCSI起動用のエントリアドレス
-		0x00, 0xfc, 0x00, 0x16,			// $fc0004 IOCSベクタ設定のエントリアドレス(必ず"Human"の8バイト前)
-		0x00, 0x00, 0x00, 0x00,			// $fc0008 ?
-		0x48, 0x75, 0x6d, 0x61,			// $fc000c ↓
-		0x6e, 0x36, 0x38, 0x6b,			// $fc0010 ID "Human68k"	(必ず起動エントリポイントの直前)
-		0x4e, 0x75,				// $fc0014 "rts"		(起動エントリポイント)
-		0x23, 0xfc, 0x00, 0xfc, 0x00, 0x2a,	// $fc0016 ↓		(IOCSベクタ設定エントリポイント)
-		0x00, 0x00, 0x07, 0xd4,			// $fc001c "move.l #$fc002a, $7d4.l"
-		0x74, 0xff,				// $fc0020 "moveq #-1, d2"
-		0x4e, 0x75,				// $fc0022 "rts"
-//		0x53, 0x43, 0x53, 0x49, 0x49, 0x4e,	// $fc0024 ID "SCSIIN"
-// 内蔵SCSIをONにすると、SASIは自動的にOFFになっちゃうらしい…
-// よって、IDはマッチしないようにしておく…
-		0x44, 0x55, 0x4d, 0x4d, 0x59, 0x20,	// $fc0024 ID "DUMMY "
-		0x70, 0xff,				// $fc002a "moveq #-1, d0"	(SCSI IOCSコールエントリポイント)
-		0x4e, 0x75,				// $fc002c "rts"
-	};
+	// SCSI detection is disabled due to false positive issues
+	// The pattern 0xFC00 0x0000 can occur in non-SCSI ROMs like iplromxv.dat
+	// TODO: Implement more robust SCSI detection if needed
 
-#if 0
-	DWORD *p;
-#endif
-	WORD *p1, *p2;
-	int scsi;
-	int i;
-
-	scsi = 0;
-	for (i = 0x30600; i < 0x30c00; i += 2) {
-#if 0 // 4の倍数ではない偶数アドレスからの4バイト長アクセスはMIPSには無理
-		p = (DWORD *)(&IPL[i]);
-		if (*p == 0x0000fc00)
-			scsi = 1;
-#else
-		p1 = (WORD *)(&IPL[i]);
-		p2 = p1 + 1;
-		// xxx: works only for little endian guys
-		if (*p1 == 0xfc00 && *p2 == 0x0000) {
-			scsi = 1;
-			break;
-		}
-#endif
-	}
-
-	// SCSIモデルのとき
-	if (scsi) {
-		ZeroMemory(IPL, 0x2000);		// 本体は8kb
-		memset(&IPL[0x2000], 0xff, 0x1e000);	// 残りは0xff
-		memcpy(IPL, SCSIIMG, sizeof(SCSIIMG));	// インチキSCSI BIOS
-//		Memory_SetSCSIMode();
-	} else {
-		// SASIモデルはIPLがそのまま見える
-		memcpy(IPL, &IPL[0x20000], 0x20000);
-	}
+	// Copy IPL ROM to address 0 (SASI mode)
+	memcpy(IPL, &IPL[0x20000], 0x20000);
 }
 
 int
@@ -179,55 +131,66 @@ WinX68k_LoadROMs(void)
 	int i;
 	BYTE tmp;
 
-	for (fp = 0, i = 0; fp == 0 && i < NELEMENTS(BIOSFILE); ++i) {
-		fp = File_OpenCurDir((char *)BIOSFILE[i]);
+	// ===== IPL ROM loading =====
+	fp = 0;
+
+	// 1) If custom path specified via --iplrom, try File_Open() first
+	//    (supports both absolute and relative paths from CWD)
+	if (Config.IplromPath[0] != '\0') {
+		fp = File_Open(Config.IplromPath);
+		if (fp == 0) {
+			printf("Cannot open IPL ROM file: %s\n", Config.IplromPath);
+		}
+	}
+
+	// 2) If no custom path or failed, search in default directory (~/.keropi/)
+	if (fp == 0) {
+		for (i = 0; fp == 0 && i < NELEMENTS(BIOSFILE); ++i) {
+			fp = File_OpenCurDir((char *)BIOSFILE[i]);
+		}
 	}
 
 	if (fp == 0) {
-		Error("BIOS ROM イメージが見つかりません.");
+		Error("BIOS ROM image not found.");
 		return FALSE;
 	}
 
 	File_Read(fp, &IPL[0x20000], 0x20000);
 	File_Close(fp);
 
-	WinX68k_SCSICheck();	// SCSI IPLなら、$fc0000〜にSCSI BIOSを置く
+	WinX68k_SCSICheck();	// SCSI IPL check
 
+	// Byte swap
 	for (i = 0; i < 0x40000; i += 2) {
 		tmp = IPL[i];
 		IPL[i] = IPL[i + 1];
 		IPL[i + 1] = tmp;
 	}
 
-	fp = File_OpenCurDir((char *)FONTFILE);
-	if (fp == 0) {
-		// cgrom.tmpがある？
-		fp = File_OpenCurDir((char *)FONTFILETMP);
+	// ===== Font ROM (CGROM) loading =====
+	fp = 0;
+
+	// 1) If custom path specified via --cgrom, try File_Open() first
+	if (Config.CgromPath[0] != '\0') {
+		fp = File_Open(Config.CgromPath);
 		if (fp == 0) {
-#if 1
-			// フォント生成 XXX
-			printf("フォントROMイメージが見つかりません\n");
-			return FALSE;
-#else
-			MessageBox(hWndMain,
-				"フォントROMイメージが見つかりません.\nWindowsフォントから新規に作成します.",
-				"けろぴーのメッセージ", MB_ICONWARNING | MB_OK);
-			SSTP_SendMes(SSTPMES_MAKEFONT);
-			make_cgromdat(FONT, FALSE, "ＭＳ ゴシック", "ＭＳ 明朝");
-			//WinX68k_MakeFont();
-			//DialogBox(hInst, MAKEINTRESOURCE(IDD_PROGBAR),
-			//		hWndMain, (DLGPROC)MakeFontProc);
-			fp = File_CreateCurDir(FONTFILETMP);
-			if (fp)
-			{
-				File_Write(fp, FONT, 0xc0000);
-				File_Close(fp);
-				return TRUE;
-			}
-			return TRUE;
-#endif
+			printf("Cannot open CGROM file: %s\n", Config.CgromPath);
 		}
 	}
+
+	// 2) If no custom path or failed, search in default directory
+	if (fp == 0) {
+		fp = File_OpenCurDir((char *)FONTFILE);
+		if (fp == 0) {
+			fp = File_OpenCurDir((char *)FONTFILETMP);
+		}
+	}
+
+	if (fp == 0) {
+		printf("Font ROM image not found.\n");
+		return FALSE;
+	}
+
 	File_Read(fp, FONT, 0xc0000);
 	File_Close(fp);
 
@@ -237,11 +200,26 @@ WinX68k_LoadROMs(void)
 int
 WinX68k_Reset(void)
 {
+	DWORD initial_sp, initial_pc;
+
 	OPM_Reset();
 
 	C68k_Reset(&C68K);
-	C68k_Set_Reg(&C68K, C68K_A7, (IPL[0x30001]<<24)|(IPL[0x30000]<<16)|(IPL[0x30003]<<8)|IPL[0x30002]);
-	C68k_Set_Reg(&C68K, C68K_PC, (IPL[0x30005]<<24)|(IPL[0x30004]<<16)|(IPL[0x30007]<<8)|IPL[0x30006]);
+
+	// Read initial SP and PC from reset vectors
+	// X68000 hardware: The last half of IPLROM (offset 0x10000) is mapped to $000000 on reset
+	// After WinX68k_LoadROMs: ROM is copied to IPL[0..0x1FFFF] and byte-swapped
+	// So reset vectors are at IPL[0x10000] (ROM offset 0x10000)
+	// M68000 is big-endian, but IPL is byte-swapped for little-endian host access
+	initial_sp = (IPL[0x10001]<<24)|(IPL[0x10000]<<16)|(IPL[0x10003]<<8)|IPL[0x10002];
+	initial_pc = (IPL[0x10005]<<24)|(IPL[0x10004]<<16)|(IPL[0x10007]<<8)|IPL[0x10006];
+
+	// Copy reset vectors to RAM address 0 (as MAME does)
+	// The last half of IPLROM is mapped to $000000 on reset
+	memcpy(MEM, &IPL[0x10000], 8);
+
+	C68k_Set_Reg(&C68K, C68K_A7, initial_sp);
+	C68k_Set_Reg(&C68K, C68K_PC, initial_pc);
 
 	Memory_Init();
 	CRTC_Init();
@@ -318,7 +296,7 @@ WinX68k_Cleanup(void)
 
 #define CLOCK_SLICE 200
 // -----------------------------------------------------------------------------------
-//  コアのめいんるーぷ
+// 
 // -----------------------------------------------------------------------------------
 void WinX68k_Exec(void)
 {
@@ -364,7 +342,7 @@ void WinX68k_Exec(void)
 
 	do {
 		int m, n = (ICount>CLOCK_SLICE)?CLOCK_SLICE:ICount;
-		C68K.ICount = m68000_ICountBk = 0;			// 割り込み発生前に与えておかないとダメ（CARAT）
+		C68K.ICount = m68000_ICountBk = 0;			// CARAT
 
 		if ( hsync ) {
 			hsync = 0;
@@ -381,9 +359,9 @@ void WinX68k_Exec(void)
 					MFP_Int(9);
 			} else {
 				if ( CRTC_VEND>=VLINE_TOTAL ) {
-					if ( (long)vline==(CRTC_VEND-VLINE_TOTAL) ) MFP_Int(9);		// エキサイティングアワーとか（TOTAL<VEND）
+					if ( (long)vline==(CRTC_VEND-VLINE_TOTAL) ) MFP_Int(9);		// TOTAL<VEND
 				} else {
-					if ( (long)vline==(VLINE_TOTAL-1) ) MFP_Int(9);			// クレイジークライマーはコレでないとダメ？
+					if ( (long)vline==(VLINE_TOTAL-1) ) MFP_Int(9);
 				}
 			}
 		}
@@ -410,7 +388,7 @@ void WinX68k_Exec(void)
 				if (/*fdctrace&&*/(oldpc != C68k_Get_Reg(&C68K, C68K_PC)))
 				{
 //					//tracing--;
-				  fprintf(fp, "D0:%08X D1:%08X D2:%08X D3:%08X D4:%08X D5:%08X D6:%08X D7:%08X CR:%04X\n", C68K.D[0], C68K.D[1], C68K.D[2], C68K.D[3], C68K.D[4], C68K.D[5], C68K.D[6], C68K.D[7], 0/* xxx とりあえず0 C68K.ccr */);
+				  fprintf(fp, "D0:%08X D1:%08X D2:%08X D3:%08X D4:%08X D5:%08X D6:%08X D7:%08X CR:%04X\n", C68K.D[0], C68K.D[1], C68K.D[2], C68K.D[3], C68K.D[4], C68K.D[5], C68K.D[6], C68K.D[7], 0/* xxx 0 C68K.ccr */);
 				  fprintf(fp, "A0:%08X A1:%08X A2:%08X A3:%08X A4:%08X A5:%08X A6:%08X A7:%08X SR:%04X\n", C68K.A[0], C68K.A[1], C68K.A[2], C68K.A[3], C68K.A[4], C68K.A[5], C68K.A[6], C68K.A[7], C68k_Get_Reg(&C68K, C68K_SR) >> 8/* regs.sr_high*/);
 					fprintf(fp, "<%04X> (%08X ->) %08X : %s\n", Memory_ReadW(C68k_Get_Reg(&C68K, C68K_PC)), oldpc, C68k_Get_Reg(&C68K, C68K_PC), buf);
 				}
@@ -427,7 +405,7 @@ void WinX68k_Exec(void)
 		{
 			C68K.ICount = n;
 			C68k_Exec(&C68K, C68K.ICount);
-			m = (n-C68K.ICount-m68000_ICountBk);			// 経過クロック数
+			m = (n-C68K.ICount-m68000_ICountBk);
 			ClkUsed += m*10;
 			usedclk = ClkUsed/clkdiv;
 			clk_line += usedclk;
@@ -450,11 +428,11 @@ void WinX68k_Exec(void)
 			if ( (MFP[MFP_AER]&0x40)&&(vline==CRTC_IntLine) )
 				MFP_Int(1);
 			if ( (!DispFrame)&&(vline>=CRTC_VSTART)&&(vline<CRTC_VEND) ) {
-				if ( CRTC_VStep==1 ) {				// HighReso 256dot（2度読み）
+				if ( CRTC_VStep==1 ) {				// HighReso 256dot2
 					if ( vline%2 )
 						WinDraw_DrawLine();
 				} else if ( CRTC_VStep==4 ) {		// LowReso 512dot
-					WinDraw_DrawLine();				// 1走査線で2回描く（インターレース）
+					WinDraw_DrawLine();				// 12
 					VLINE++;
 					WinDraw_DrawLine();
 				} else {							// High 512dot / Low 256dot
@@ -487,12 +465,12 @@ void WinX68k_Exec(void)
 		}
 	} while ( vline<VLINE_TOTAL );
 
-	if ( CRTC_Mode&2 ) {		// FastClrビットの調整（PITAPAT）
-		if ( CRTC_FastClr ) {	// FastClr=1 且つ CRTC_Mode&2 なら 終了
+	if ( CRTC_Mode&2 ) {		// FastClrPITAPAT
+		if ( CRTC_FastClr ) {	// FastClr=1  CRTC_Mode&2
 			CRTC_FastClr--;
 			if ( !CRTC_FastClr )
 				CRTC_Mode &= 0xfd;
-		} else {				// FastClr開始
+		} else {				// FastClr
 			if ( CRTC_Regs[0x29]&0x10 )
 				CRTC_FastClr = 1;
 			else
@@ -518,6 +496,125 @@ void WinX68k_Exec(void)
 		if ( FrameSkipQueue>100 )
 			FrameSkipQueue = 100;
 	}
+}
+
+//
+// Command line option definitions
+//
+static struct option long_options[] = {
+	{"help",       no_argument,       0, 'h'},
+	{"iplrom",     required_argument, 0, 'I'},
+	{"cgrom",      required_argument, 0, 'C'},
+	{"fdd0",       required_argument, 0, '0'},
+	{"fdd1",       required_argument, 0, '1'},
+	{"hdd0",       required_argument, 0, 'A'},
+	{"hdd1",       required_argument, 0, 'B'},
+	{"scsirom",    required_argument, 0, 'S'},
+	{"scsiintrom", required_argument, 0, 's'},
+	{0, 0, 0, 0}
+};
+
+static void print_help(const char *progname)
+{
+	printf("PX68K - Sharp X68000 Emulator Ver.%s\n", PX68KVERSTR);
+	printf("\n");
+	printf("Usage: %s [options] [fdd0_image] [fdd1_image]\n", progname);
+	printf("\n");
+	printf("Options:\n");
+	printf("  -h, --help          Show this help message\n");
+	printf("  --iplrom <file>     Set IPL ROM file path\n");
+	printf("  --cgrom <file>      Set CGROM (font) file path\n");
+	printf("  --fdd0 <file>       Set FDD0 disk image\n");
+	printf("  --fdd1 <file>       Set FDD1 disk image\n");
+	printf("  --hdd0 <file>       Set HDD0 (SASI #0) disk image\n");
+	printf("  --hdd1 <file>       Set HDD1 (SASI #1) disk image\n");
+	printf("  --scsirom <file>    Set External SCSI ROM (CZ-6BS1)\n");
+	printf("  --scsiintrom <file> Set Internal SCSI ROM\n");
+	printf("\n");
+	printf("Path handling:\n");
+	printf("  All file options support both absolute and relative paths.\n");
+	printf("  Relative paths are resolved from the current working directory.\n");
+	printf("\n");
+	printf("ROM files:\n");
+	printf("  IPL ROM: iplrom.dat, iplrom30.dat, iplromco.dat, iplromxv.dat\n");
+	printf("  Font ROM: cgrom.dat (or cgrom.tmp)\n");
+	printf("  Default location: ~/.keropi/\n");
+	printf("\n");
+	printf("Note: ROM path options (--iplrom, --cgrom, --scsirom, --scsiintrom)\n");
+	printf("  are saved and will be reused in subsequent sessions.\n");
+	printf("\n");
+	printf("Supported disk formats: XDF, D88, DIM, 2HD, HDF\n");
+}
+
+static int parse_command_line(int argc, char *argv[])
+{
+	int c;
+	int option_index = 0;
+
+	// Reset getopt
+	optind = 1;
+
+	while ((c = getopt_long(argc, argv, "h", long_options, &option_index)) != -1) {
+		switch (c) {
+		case 'h':
+			print_help(argv[0]);
+			return -1;  // Signal to exit
+		case 'I':  // --iplrom
+			strncpy(Config.IplromPath, optarg, MAX_PATH - 1);
+			Config.IplromPath[MAX_PATH - 1] = '\0';
+			break;
+		case 'C':  // --cgrom
+			strncpy(Config.CgromPath, optarg, MAX_PATH - 1);
+			Config.CgromPath[MAX_PATH - 1] = '\0';
+			break;
+		case '0':  // --fdd0
+			strncpy(Config.FDDImage[0], optarg, MAX_PATH - 1);
+			Config.FDDImage[0][MAX_PATH - 1] = '\0';
+			break;
+		case '1':  // --fdd1
+			strncpy(Config.FDDImage[1], optarg, MAX_PATH - 1);
+			Config.FDDImage[1][MAX_PATH - 1] = '\0';
+			break;
+		case 'A':  // --hdd0
+			strncpy(Config.HDImage[0], optarg, MAX_PATH - 1);
+			Config.HDImage[0][MAX_PATH - 1] = '\0';
+			break;
+		case 'B':  // --hdd1
+			strncpy(Config.HDImage[1], optarg, MAX_PATH - 1);
+			Config.HDImage[1][MAX_PATH - 1] = '\0';
+			break;
+		case 'S':  // --scsirom (external SCSI ROM)
+			strncpy(Config.ScsiExtRomPath, optarg, MAX_PATH - 1);
+			Config.ScsiExtRomPath[MAX_PATH - 1] = '\0';
+			break;
+		case 's':  // --scsiintrom (internal SCSI ROM)
+			strncpy(Config.ScsiIntRomPath, optarg, MAX_PATH - 1);
+			Config.ScsiIntRomPath[MAX_PATH - 1] = '\0';
+			break;
+		case '?':
+			// getopt_long already printed an error message
+			return -1;
+		default:
+			break;
+		}
+	}
+
+	// Handle positional arguments (legacy support)
+	// Only use them if --fdd0/--fdd1 weren't specified
+	int pos_arg_index = 0;
+	while (optind < argc && pos_arg_index < 2) {
+		if (pos_arg_index == 0 && Config.FDDImage[0][0] == '\0') {
+			strncpy(Config.FDDImage[0], argv[optind], MAX_PATH - 1);
+			Config.FDDImage[0][MAX_PATH - 1] = '\0';
+		} else if (pos_arg_index == 1 && Config.FDDImage[1][0] == '\0') {
+			strncpy(Config.FDDImage[1], argv[optind], MAX_PATH - 1);
+			Config.FDDImage[1][MAX_PATH - 1] = '\0';
+		}
+		optind++;
+		pos_arg_index++;
+	}
+
+	return 0;
 }
 
 //
@@ -613,9 +710,14 @@ int main(int argc, char *argv[])
 
 	dosio_init();
 	file_setcd(winx68k_dir);
-    puts(winx68k_dir);
+	puts(winx68k_dir);
 
 	LoadConfig();
+
+	// Parse command line options (after LoadConfig to allow overrides)
+	if (parse_command_line(argc, argv) < 0) {
+		return 0;  // --help was shown or error occurred
+	}
 
 #ifndef NOSOUND
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0) {
@@ -630,22 +732,11 @@ int main(int argc, char *argv[])
 	}
 #endif
 
-#if !SDL_VERSION_ATLEAST(2, 0, 0)
-	SDL_WM_SetCaption(APPNAME" SDL", NULL);
-#ifndef PSP
-        if (SDL_SetVideoMode(FULLSCREEN_WIDTH, FULLSCREEN_HEIGHT, 16, SDL_SWSURFACE) == NULL) {
-#else
-        if (SDL_SetVideoMode(480, 272, 16, SDL_SWSURFACE) == NULL) {
-#endif
-		puts("SDL_SetVideoMode() failed");
-		return 1;
-	}
-#else
 #ifdef USE_OGLES11
 	SDL_DisplayMode sdl_dispmode;
 	SDL_GetCurrentDisplayMode(0, &sdl_dispmode);
 	p6logd("width: %d height: %d", sdl_dispmode.w, sdl_dispmode.h);
-	// ナビゲーションバーを除くアプリが触れる画面
+	// 
 	realdisp_w = sdl_dispmode.w, realdisp_h = sdl_dispmode.h;
 
 	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 1 );
@@ -654,13 +745,16 @@ int main(int argc, char *argv[])
 	SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 ); 
 
 #if TARGET_OS_IPHONE
-	sdl_window = SDL_CreateWindow(APPNAME" SDL", 0, 0, FULLSCREEN_WIDTH, FULLSCREEN_HEIGHT, SDL_WINDOW_OPENGL|SDL_WINDOW_SHOWN|SDL_WINDOW_BORDERLESS);
+	sdl_window = SDL_CreateWindow(APPNAME" SDL", 0, 0, FULLSCREEN_WIDTH, FULLSCREEN_HEIGHT, SDL_WINDOW_OPENGL|SDL_WINDOW_SHOWN|SDL_WINDOW_BORDERLESS|SDL_WINDOW_ALLOW_HIGHDPI);
 #else
-	// for Android: window sizeの指定は関係なくフルスクリーンになるみたい
-	sdl_window = SDL_CreateWindow(APPNAME" SDL", 0, 0, FULLSCREEN_WIDTH, FULLSCREEN_HEIGHT, SDL_WINDOW_OPENGL|SDL_WINDOW_SHOWN);
+	// for Android: window size
+	sdl_window = SDL_CreateWindow(APPNAME" SDL", 0, 0, FULLSCREEN_WIDTH, FULLSCREEN_HEIGHT, SDL_WINDOW_OPENGL|SDL_WINDOW_SHOWN|SDL_WINDOW_ALLOW_HIGHDPI);
 #endif
 #else
-	sdl_window = SDL_CreateWindow(APPNAME" SDL", 0, 0, FULLSCREEN_WIDTH, FULLSCREEN_HEIGHT, SDL_WINDOW_SHOWN);
+	sdl_window = SDL_CreateWindow(APPNAME" SDL",
+		SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+		FULLSCREEN_WIDTH, FULLSCREEN_HEIGHT,
+		SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
 #endif
 	if (sdl_window == NULL) {
 		p6logd("sdl_window: %ld", sdl_window);
@@ -676,15 +770,14 @@ int main(int argc, char *argv[])
 	glEnable(GL_BLEND);
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	//glViewport(0, 0, 800, 600); //ここを増やさないとOpenGLの画面はせまい
+	//glViewport(0, 0, 800, 600); //OpenGL
 	glViewport(0, 0, sdl_dispmode.w, sdl_dispmode.h);
-	// スマホやタブの実画面に関係なくOpenGLの描画領域を800x600とする。
-	// 800x600にした意味は特にない。
+	// OpenGL800x600
+	// 800x600
 	glOrthof(0, 800, 600, 0, -1, 1);
 	//  glOrthof(0, 1024, 0, 1024, -1, 1);
 	glMatrixMode(GL_MODELVIEW);
 #endif
-#endif // !SDL_VERSION_ATLEAST(2, 0, 0)
 
 	if (!WinDraw_MenuInit()) {
 		WinX68k_Cleanup();
@@ -714,7 +807,7 @@ int main(int argc, char *argv[])
 		exit (1);
 	}
 
-	Keyboard_Init(); //WinDraw_Init()前に移動
+	Keyboard_Init(); // WinDraw_Init()
 
 	if (!WinDraw_Init()) {
 		WinDraw_Cleanup();
@@ -742,10 +835,27 @@ int main(int argc, char *argv[])
 	Joystick_Init();
 	SRAM_Init();
 	WinX68k_Reset();
+
+	// Load SCSI ROMs if specified via command line
+	if (Config.ScsiExtRomPath[0] != '\0') {
+		if (SCSI_LoadExternalROM(Config.ScsiExtRomPath)) {
+			printf("Loaded external SCSI ROM: %s\n", Config.ScsiExtRomPath);
+		} else {
+			printf("Failed to load external SCSI ROM: %s\n", Config.ScsiExtRomPath);
+		}
+	}
+	if (Config.ScsiIntRomPath[0] != '\0') {
+		if (SCSI_LoadInternalROM(Config.ScsiIntRomPath)) {
+			printf("Loaded internal SCSI ROM: %s\n", Config.ScsiIntRomPath);
+		} else {
+			printf("Failed to load internal SCSI ROM: %s\n", Config.ScsiIntRomPath);
+		}
+	}
+
 	Timer_Init();
 
 	MIDI_Init();
-	MIDI_SetMimpiMap(Config.ToneMapFile);	// 音色設定ファイル使用反映
+	MIDI_SetMimpiMap(Config.ToneMapFile);
 	MIDI_EnableMimpiDef(Config.ToneMap);
 
 	if (sdlaudio == 0 && !DSound_Init(Config.SampleRate, Config.BufferSize)) {
@@ -759,15 +869,6 @@ int main(int argc, char *argv[])
 	Mcry_SetVolume((BYTE)Config.MCR_VOL);
 #endif
 	DSound_Play();
-
-	// command line から指定した場合
-	switch (argc) {
-	case 3:
-		strcpy(Config.FDDImage[1], argv[2]);
-	case 2:
-		strcpy(Config.FDDImage[0], argv[1]);
-		break;
-	}
 
 	FDD_SetFD(0, Config.FDDImage[0], 0);
 	FDD_SetFD(1, Config.FDDImage[1], 0);
@@ -806,8 +907,21 @@ int main(int argc, char *argv[])
 			switch (ev.type) {
 			case SDL_QUIT:
 				goto end_loop;
+			case SDL_WINDOWEVENT:
+				switch (ev.window.event) {
+				case SDL_WINDOWEVENT_RESIZED:
+				case SDL_WINDOWEVENT_SIZE_CHANGED:
+					// Window resized - renderer will adapt automatically
+					// thanks to aspect ratio calculation in WinDraw_Draw
+					p6logd("Window resized: %dx%d\n", ev.window.data1, ev.window.data2);
+					break;
+				case SDL_WINDOWEVENT_EXPOSED:
+					// Window needs redraw
+					Draw_DrawFlag = 1;
+					break;
+				}
+				break;
 			case SDL_MOUSEMOTION:
-				p6logd("x:%d y:%d xrel:%d yrel:%d\n", ev.motion.x, ev.motion.y, ev.motion.xrel, ev.motion.yrel);
 				break;
 #if defined(ANDROID) || TARGET_OS_IPHONE
 			case SDL_APP_WILLENTERBACKGROUND:
@@ -869,8 +983,11 @@ int main(int argc, char *argv[])
 					break;
 				}
 #endif
-				printf("keydown: 0x%x\n", ev.key.keysym.sym);
-				printf("font %d %d\n", FONT[100], FONT[101]);
+				// F11: Toggle fullscreen
+				if (ev.key.keysym.sym == SDLK_F11) {
+					WinDraw_ToggleFullscreen();
+				}
+				// F12: Toggle menu
 				if (ev.key.keysym.sym == SDLK_F12) {
 					if (menu_mode == menu_out) {
 						menu_mode = menu_enter;
@@ -893,7 +1010,6 @@ int main(int argc, char *argv[])
 				}
 				break;
 			case SDL_KEYUP:
-				printf("keyup: 0x%x\n", ev.key.keysym.sym);
 				Keyboard_KeyUp(ev.key.keysym.sym);
 				break;
 			}
@@ -914,7 +1030,7 @@ int main(int argc, char *argv[])
 		if (menu_mode == menu_out
 		    && Joystick_get_downstate_psp(PSP_CTRL_SELECT)) {
 			Keyboard_ToggleSkbd();
-			// 2度読み除け
+			// 2
 			Joystick_reset_downstate_psp(PSP_CTRL_SELECT);
 		}
 
@@ -1002,9 +1118,9 @@ int main(int argc, char *argv[])
 
 	}
 end_loop:
-	Memory_WriteB(0xe8e00d, 0x31);	// SRAM書き込み許可
-	Memory_WriteD(0xed0040, Memory_ReadD(0xed0040)+1); // 積算稼働時間(min.)
-	Memory_WriteD(0xed0044, Memory_ReadD(0xed0044)+1); // 積算起動回数
+	Memory_WriteB(0xe8e00d, 0x31);	// SRAM
+	Memory_WriteD(0xed0040, Memory_ReadD(0xed0040)+1); // (min.)
+	Memory_WriteD(0xed0044, Memory_ReadD(0xed0044)+1);
 
 	OPM_Cleanup();
 #ifndef	NO_MERCURY

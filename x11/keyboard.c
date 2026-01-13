@@ -44,7 +44,7 @@ struct keyboard_key kbd_key[] = {
 extern BYTE traceflag;
 
 #if defined(PSP) || defined(ANDROID) || TARGET_OS_IPHONE
-// キーボードの座標
+// 
 int kbd_x = 800, kbd_y = 0, kbd_w = 766, kbd_h = 218;
 #endif
 
@@ -58,10 +58,10 @@ Keyboard_Init(void)
 	KeyEnable = 1;
 	KeyIntFlag = 0;
 #ifdef PSP
-	// 全てのサイズを半分にする
+	// 
 	int i = 0;
 
-	kbd_x = kbd_y = 0; // PSPは初期位置0
+	kbd_x = kbd_y = 0; // PSP0
 	kbd_w /= 2, kbd_h /= 2;
 
 	while (kbd_key[i].x != -1) {
@@ -75,7 +75,7 @@ Keyboard_Init(void)
 }
 
 // ----------------------------------
-//	てーぶる類
+//	
 // ----------------------------------
 
 #define	NC	0
@@ -154,7 +154,7 @@ BYTE KeyTable[KEYTABLE_MAX] = {
 		  NC,  NC,  NC,  NC,  NC,  NC,  NC,  NC,
 	//	  BS, TAB,  LF, CLR,    , RET,    ,   		; 0x08
 		0x0f,0x10,0x1d,  NC,  NC,0x1d,  NC,  NC,
-	//	    ,  ↑,  ↓,  →,  ←,SYSQ,    ,  		; 0x10
+	//	 , , , , ,SYSQ, , 		; 0x10
 		  NC,0x3c,0x3e,0x3d,0x3b,  NC,  NC,  NC,
 	//	    ,    ,    , ESC,    ,    ,    ,   		; 0x18
 		  NC,  NC,0x63,0x01,  NC,  NC,  NC,  NC,
@@ -170,7 +170,7 @@ BYTE KeyTable[KEYTABLE_MAX] = {
 		  NC,  NC,  NC,  NC,  NC,  NC,  NC,  NC,
 	//	    ,    ,    ,    ,    ,    ,    ,   		; 0x48
 		  NC,  NC,  NC,  NC,  NC,  NC,  NC,  NC,
-	//	HOME,  ←,  ↑,  →,  ↓,RLDN,RLUP, END		; 0x50
+	//	HOME, , , , ,RLDN,RLUP, END		; 0x50
 		0x36,0x3b,0x3c,0x3d,0x3e,0x39,0x38,0x3a,
 	//	    ,    ,    ,    ,    ,    ,    ,   		; 0x58
 		  NC,  NC,  NC,  NC,  NC,  NC,  NC,  NC,
@@ -186,9 +186,9 @@ BYTE KeyTable[KEYTABLE_MAX] = {
 		  NC,  NC,  NC,  NC,  NC,  NC,  NC,  NC,
 	//	    ,<TAB,    ,    ,    ,<ENT,    ,  		; 0x88
 		  NC,  NC,  NC,  NC,  NC,  NC,  NC,  NC,
-	//	    ,    ,    ,    ,    ,<HOM,<←>,<↑>		; 0x90
+	//	 , , , , ,<HOM,<>,<>		; 0x90
 		  NC,  NC,  NC,  NC,  NC,0x36,0x3b,0x3c,
-	//	<→>,<↓>,<RDN,<RUP,<END,    ,<INS,<DEL		; 0x98
+	//	<>,<>,<RDN,<RUP,<END, ,<INS,<DEL		; 0x98
 		0x3d,0x3e,0x39,0x38,0x3a,  NC,0x5e,0x37,
 	//	    ,    ,    ,    ,    ,    ,    ,    		; 0xa0
 		  NC,  NC,  NC,  NC,  NC,  NC,  NC,  NC,
@@ -304,7 +304,7 @@ BYTE KeyTableMaster[KEYTABLE_MAX] = {
 		  NC,  NC,  NC,  NC,  NC,  NC,  NC,  NC,
 	//	    ,    ,    ,    ,    ,    ,    ,   		; 0x48
 		  NC,  NC,  NC,  NC,  NC,  NC,  NC,  NC,
-	//	HOME,  ←,  ↑,  →,  ↓,RLDN,RLUP, END		; 0x50
+	//	HOME, , , , ,RLDN,RLUP, END		; 0x50
 		0x36,  NC,  NC,  NC,  NC,0x39,0x38,0x3a,
 	//	    ,    ,    ,    ,    ,    ,    ,   		; 0x58
 		  NC,  NC,  NC,  NC,  NC,  NC,  NC,  NC,
@@ -320,9 +320,9 @@ BYTE KeyTableMaster[KEYTABLE_MAX] = {
 		  NC,  NC,  NC,  NC,  NC,  NC,  NC,  NC,
 	//	    ,<TAB,    ,    ,    ,<ENT,    ,  		; 0x88
 		  NC,  NC,  NC,  NC,  NC,  NC,  NC,  NC,
-	//	    ,    ,    ,    ,    ,<HOM,<←>,<↑>		; 0x90
+	//	 , , , , ,<HOM,<>,<>		; 0x90
 		  NC,  NC,  NC,  NC,  NC,0x36,  NC,  NC,
-	//	<→>,<↓>,<RDN,<RUP,<END,    ,<INS,<DEL		; 0x98
+	//	<>,<>,<RDN,<RUP,<END, ,<INS,<DEL		; 0x98
 		  NC,  NC,0x39,0x38,0x3a,  NC,0x5e,0x37,
 	//	    ,    ,    ,    ,    ,    ,    ,    		; 0xa0
 		  NC,  NC,  NC,  NC,  NC,  NC,  NC,  NC,
@@ -386,19 +386,6 @@ static BYTE get_x68k_keycode(DWORD wp)
 	case SDLK_RIGHT:
 		return 0x3d;
 #ifndef PSP
-#if !SDL_VERSION_ATLEAST(2, 0, 0)
-#define SDLK_KP_0 SDLK_KP0
-#define SDLK_KP_1 SDLK_KP1
-#define SDLK_KP_2 SDLK_KP2
-#define SDLK_KP_3 SDLK_KP3
-#define SDLK_KP_4 SDLK_KP4
-#define SDLK_KP_5 SDLK_KP5
-#define SDLK_KP_6 SDLK_KP6
-#define SDLK_KP_7 SDLK_KP7
-#define SDLK_KP_8 SDLK_KP8
-#define SDLK_KP_9 SDLK_KP9
-#define SDLK_NUMLOCKCLEAR SDLK_NUMLOCK
-#endif
 	case SDLK_KP_0:
 		return 0x4f;
 	case SDLK_KP_1:
@@ -474,7 +461,7 @@ static BYTE get_x68k_keycode(DWORD wp)
 }
 
 // ----------------------------------
-//	WM_KEYDOWN〜
+//	WM_KEYDOWN
 // ----------------------------------
 void
 Keyboard_KeyDown(DWORD wp)
@@ -498,10 +485,6 @@ Keyboard_KeyDown(DWORD wp)
 		return;
 	}
 
-	printf("Keyboard_KeyDown: ");
-	printf("wp=0x%x, code=0x%x\n", wp, code);
-	printf("SDLK_UP: 0x%x", SDLK_UP);
-
 #if 0
 	if (code != NC) {
 		newwp = ((KeyBufWP + 1) & (KeyBufSize - 1));
@@ -515,11 +498,8 @@ Keyboard_KeyDown(DWORD wp)
 	send_keycode(code, P6K_DOWN);
 #endif
 
-	printf("JoyKeyState: 0x%x\n", JoyKeyState);
-
 	switch (wp) {
 	case SDLK_UP:
-		puts("key up");
 		if (!(JoyKeyState&JOY_DOWN))
 			JoyKeyState |= JOY_UP;
 		break;
@@ -592,8 +572,6 @@ Keyboard_KeyUp(DWORD wp)
 	send_keycode(code, P6K_UP);
 #endif
 
-	printf("JoyKeyState: 0x%x\n", JoyKeyState);
-
 	switch(wp) {
 	case SDLK_UP:
 		JoyKeyState &= ~JOY_UP;
@@ -630,7 +608,7 @@ Keyboard_KeyUp(DWORD wp)
 
 // ----------------------------------
 //	Key Check
-//	1フレーム中に4回（2400bps/10bit/60fpsとすれば、だが）呼ばれて、MFPにデータを送る
+//	142400bps/10bit/60fpsMFP
 // ----------------------------------
 
 void
@@ -649,11 +627,11 @@ Keyboard_Int(void)
 	}
 }
 
-/********** ソフトウェアキーボード **********/
+/********** **********/
 
 #if defined(PSP) || defined(USE_OGLES11)
 
-// 選択しているキーの座標 (初期値'Q')
+// ('Q')
 int  kbd_kx = 1, kbd_ky = 2;
 
 #define KEYXMAX 32767
@@ -704,7 +682,7 @@ static void set_near_key(int p, int tx)
 {
 	while (kbd_key[p].x < kbd_key[p + 1].x) {
 		if (kbd_key[p].x >= tx) {
-			// x座標の一番近いキーに移動する
+			// x
 			if (abs(kbd_key[p].x - tx)
 			    > abs(tx - kbd_key[p - 1].x)) {
 				p--;
@@ -725,7 +703,7 @@ static void key_up(void)
 	p = Keyboard_get_key_ptr(kbd_kx, kbd_ky);
 	tx = kbd_key[p].x;
 
-	// 上の行の先頭を探す
+	// 
 	while (p > 0) {
 		if (kbd_key[p - 1].x > kbd_key[p].x) {
 			c--;
@@ -752,7 +730,7 @@ static void key_down(void)
 	p = Keyboard_get_key_ptr(kbd_kx, kbd_ky);
 	tx = kbd_key[p].x;
 
-	// 下の行の先頭を探す
+	// 
 	while (kbd_key[p].x != -1) {
 		if (kbd_key[p + 1].x < kbd_key[p].x) {
 			p++;
@@ -765,7 +743,7 @@ static void key_down(void)
 }
 
 
-// dx と dy はどちらか一方は 0 とする。 dx: -1/0/+1 dy: -1/0/+1
+// dx dy 0 dx: -1/0/+1 dy: -1/0/+1
 static void mv_key(int dx, int dy)
 {
 	int p;
@@ -785,16 +763,16 @@ static void mv_key(int dx, int dy)
 
 	WinDraw_reverse_key(kbd_kx, kbd_ky);
 
-	// 飛ばし先の微調整が必要なものたち
-	// カーソルキー周りは面倒なので微調整なし
+	// 
+	// 
 	if (kbd_kx == 12 && kbd_ky == 3 && dx == +1) {
-		// ] の右となりは RET に飛ばす
+		// ] RET 
 		kbd_kx = 14, kbd_ky = 2;
 	} else if (kbd_kx == 12 && kbd_ky == 5 && dx == +1) {
-		// テンキーの . の右となりは ENT に飛ばす
+		// . ENT 
 		kbd_kx = 19, kbd_ky = 4;
 	} else {
-		// 微調整の必要なし
+		// 
 		kbd_kx += dx;
 	}
 
@@ -805,13 +783,13 @@ static void mv_key(int dx, int dy)
 		key_down();
 	}
 
-	// RETの左側のダミーキーはRETに移動する
+	// RETRET
 	if (kbd_kx == 13 && kbd_ky == 2) {
 		if (dx == 0) {
-			// 上下からダミーキーに行った場合
+			// 
 			kbd_kx = 14;
 		} else {
-			// 左右からダミーキーに行った場合
+			// 
 			kbd_kx += dx;
 		}
 	}
@@ -854,7 +832,7 @@ void Keyboard_skbd(void)
 		send_key(P6K_DOWN);
 	}
 	if (!(joy & JOY_TRG2)) {
-		// BSキーをkey down
+		// BSkey down
 		send_keycode(0xf, P6K_DOWN);
 	}
 
@@ -864,7 +842,7 @@ void Keyboard_skbd(void)
 		send_key(P6K_UP);
 	}
 	if (joy & JOY_TRG2) {
-		// BSキーをkey up
+		// BSkey up
 		send_keycode(0xf, P6K_UP);
 	}
 

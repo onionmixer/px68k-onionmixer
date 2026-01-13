@@ -2,7 +2,7 @@
 
 	m68000.c
 
-	M68000 CPUインタフェース関数
+	M68000 CPU
 
 ******************************************************************************/
 
@@ -11,7 +11,7 @@
 #include "../x68k/memory.h"
 
 /******************************************************************************
-	CPS2暗号化ROM用
+	CPS2ROM
 ******************************************************************************/
 
 #if (EMU_SYSTEM == CPS2)
@@ -20,7 +20,7 @@ static UINT32 m68k_encrypt_end;
 static UINT8  *m68k_decrypted_rom;
 
 /*--------------------------------------------------------
-	暗号化ROM範囲設定
+	ROM
 --------------------------------------------------------*/
 
 void m68000_set_encrypted_range(UINT32 start, UINT32 end, void *decrypted_rom)
@@ -32,7 +32,7 @@ void m68000_set_encrypted_range(UINT32 start, UINT32 end, void *decrypted_rom)
 
 
 /*--------------------------------------------------------
-	PC依存メモリリード (byte)
+	PC (byte)
 --------------------------------------------------------*/
 
 static UINT8 m68000_read_pcrelative_8(UINT32 offset)
@@ -45,7 +45,7 @@ static UINT8 m68000_read_pcrelative_8(UINT32 offset)
 
 
 /*--------------------------------------------------------
-	PC依存メモリリード (word)
+	PC (word)
 --------------------------------------------------------*/
 
 static UINT16 m68000_read_pcrelative_16(UINT32 offset)
@@ -59,11 +59,11 @@ static UINT16 m68000_read_pcrelative_16(UINT32 offset)
 
 
 /******************************************************************************
-	M68000インタフェース関数
+	M68000
 ******************************************************************************/
 
 /*--------------------------------------------------------
-	CPU初期化
+	CPU
 --------------------------------------------------------*/
 
 void m68000_init(void)
@@ -73,18 +73,18 @@ void m68000_init(void)
 	C68k_Set_ReadW(&C68K, Memory_ReadW);
 	C68k_Set_WriteB(&C68K, Memory_WriteB);
 	C68k_Set_WriteW(&C68K, Memory_WriteW);
-        C68k_Set_Fetch(&C68K, 0x000000, 0xbfffff, (UINT32)MEM);
-        C68k_Set_Fetch(&C68K, 0xc00000, 0xc7ffff, (UINT32)GVRAM);
-        C68k_Set_Fetch(&C68K, 0xe00000, 0xe7ffff, (UINT32)TVRAM);
-        C68k_Set_Fetch(&C68K, 0xea0000, 0xea1fff, (UINT32)SCSIIPL);
-        C68k_Set_Fetch(&C68K, 0xed0000, 0xed3fff, (UINT32)SRAM);
-        C68k_Set_Fetch(&C68K, 0xf00000, 0xfbffff, (UINT32)FONT);
-        C68k_Set_Fetch(&C68K, 0xfc0000, 0xffffff, (UINT32)IPL);
+        C68k_Set_Fetch(&C68K, 0x000000, 0xbfffff, (uintptr_t)MEM);
+        C68k_Set_Fetch(&C68K, 0xc00000, 0xc7ffff, (uintptr_t)GVRAM);
+        C68k_Set_Fetch(&C68K, 0xe00000, 0xe7ffff, (uintptr_t)TVRAM);
+        C68k_Set_Fetch(&C68K, 0xea0000, 0xea1fff, (uintptr_t)SCSIIPL);
+        C68k_Set_Fetch(&C68K, 0xed0000, 0xed3fff, (uintptr_t)SRAM);
+        C68k_Set_Fetch(&C68K, 0xf00000, 0xfbffff, (uintptr_t)FONT);
+        C68k_Set_Fetch(&C68K, 0xfc0000, 0xffffff, (uintptr_t)IPL);
 }
 
 
 /*--------------------------------------------------------
-	CPUリセット
+	CPU
 --------------------------------------------------------*/
 
 void m68000_reset(void)
@@ -94,7 +94,7 @@ void m68000_reset(void)
 
 
 /*--------------------------------------------------------
-	CPU停止
+	CPU
 --------------------------------------------------------*/
 
 void m68000_exit(void)
@@ -103,7 +103,7 @@ void m68000_exit(void)
 
 
 /*--------------------------------------------------------
-	CPU実行
+	CPU
 --------------------------------------------------------*/
 
 int m68000_execute(int cycles)
@@ -113,7 +113,7 @@ int m68000_execute(int cycles)
 
 
 /*--------------------------------------------------------
-	CPU実行 (NEOGEO CDZ専用: ロード画面用)
+	CPU (NEOGEO CDZ: )
 --------------------------------------------------------*/
 
 #if (EMU_SYSTEM == NCDZ)
@@ -165,7 +165,7 @@ void m68000_execute2(UINT32 start, UINT32 break_point)
 
 
 /*--------------------------------------------------------
-	割り込み処理
+	
 --------------------------------------------------------*/
 
 void m68000_set_irq_line(int irqline, int state)
@@ -178,7 +178,7 @@ void m68000_set_irq_line(int irqline, int state)
 
 
 /*--------------------------------------------------------
-	割り込みコールバック関数設定
+	
 --------------------------------------------------------*/
 
 void m68000_set_irq_callback(int (*callback)(int line))
@@ -188,7 +188,7 @@ void m68000_set_irq_callback(int (*callback)(int line))
 
 
 /*--------------------------------------------------------
-	レジスタ取得
+	
 --------------------------------------------------------*/
 
 UINT32 m68000_get_reg(int regnum)
@@ -221,7 +221,7 @@ UINT32 m68000_get_reg(int regnum)
 
 
 /*--------------------------------------------------------
-	レジスタ設定
+	
 --------------------------------------------------------*/
 
 void m68000_set_reg(int regnum, UINT32 val)
@@ -254,7 +254,7 @@ void m68000_set_reg(int regnum, UINT32 val)
 
 
 /*------------------------------------------------------
-	セーブ/ロード ステート
+	/ 
 ------------------------------------------------------*/
 
 #ifdef SAVE_STATE

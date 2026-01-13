@@ -64,7 +64,7 @@ typedef	void *		DRAWITEMSTRUCT;
 #define	MAX_PATH	MAXPATHLEN
 #endif
 
-#ifndef	max
+#if !defined(max) && !defined(NOMINMAX)
 #define	max(a,b)	(((a) > (b)) ? (a) : (b))
 #endif
 

@@ -45,6 +45,10 @@ typedef struct
 	int MIDIDelay;
 	int MIDIAutoDelay;
 	char FDDImage[2][MAX_PATH];
+	char IplromPath[MAX_PATH];
+	char CgromPath[MAX_PATH];
+	char ScsiExtRomPath[MAX_PATH];  /* External SCSI ROM (CZ-6BS1) */
+	char ScsiIntRomPath[MAX_PATH];  /* Internal SCSI ROM */
 	int VkeyScale;
 	int VbtnSwap;
 	int JoyOrMouse;

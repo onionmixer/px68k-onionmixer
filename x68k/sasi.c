@@ -1,5 +1,6 @@
 // ---------------------------------------------------------------------------------------
 //  SASI.C - Shugart Associates System Interface (SASI HDD)
+//           Also handles Internal SCSI dispatch ($E96020-$E9603F)
 // ---------------------------------------------------------------------------------------
 
 #include "common.h"
@@ -9,6 +10,7 @@
 #include "../m68000/m68000.h"
 #include "ioc.h"
 #include "sasi.h"
+#include "scsi.h"
 #include "irqh.h"
 
 BYTE SASI_Buf[256];
@@ -40,7 +42,7 @@ int SASI_IsReady(void)
 
 
 // -----------------------------------------------------------------------
-//   ¤ï¤ê¤³¤ß¡Á
+//   ã‚ã‚Šã“ã¿ã€œ
 // -----------------------------------------------------------------------
 DWORD FASTCALL SASI_Int(BYTE irq)
 {
@@ -59,7 +61,7 @@ fclose(fp);
 
 
 // -----------------------------------------------------------------------
-//   ½é´ü²½
+//   åˆæœŸåŒ–
 // -----------------------------------------------------------------------
 void SASI_Init(void)
 {
@@ -78,7 +80,7 @@ void SASI_Init(void)
 
 
 // -----------------------------------------------------------------------
-//   ¤·¡Ý¤¯¡Ê¥ê¡¼¥É»þ¡Ë
+//   ã—âˆ’ãï¼ˆãƒªãƒ¼ãƒ‰æ™‚ï¼‰
 // -----------------------------------------------------------------------
 short SASI_Seek(void)
 {
@@ -114,7 +116,7 @@ fclose(fp);
 
 
 // -----------------------------------------------------------------------
-//   ¤·¡¼¤¯¡Ê¥é¥¤¥È»þ¡Ë
+//   ã—ãƒ¼ãï¼ˆãƒ©ã‚¤ãƒˆæ™‚ï¼‰
 // -----------------------------------------------------------------------
 short SASI_Flush(void)
 {	FILEH fp;
@@ -151,6 +153,11 @@ BYTE FASTCALL SASI_Read(DWORD adr)
 	BYTE ret = 0;
 	short result;
 
+	/* Internal SCSI registers ($E96020-$E9603F) */
+	if (adr >= 0xe96020 && adr <= 0xe9603f) {
+		return SCSI_Internal_Read(adr);
+	}
+
 	if (adr==0xe96003)
 	{
 		if (SASI_Phase)
@@ -161,7 +168,7 @@ BYTE FASTCALL SASI_Read(DWORD adr)
 			ret |= 8;		// C/D
 		if ((SASI_Phase==3)&&(SASI_RW))	// SASI_RW=1:Read
 			ret |= 4;		// I/O
-		if (SASI_Phase==9)		// Phase=9:SenseStatusÃæ
+		if (SASI_Phase==9)		// Phase=9:SenseStatusä¸­
 			ret |= 4;		// I/O
 		if ((SASI_Phase==4)||(SASI_Phase==5))
 			ret |= 0x0c;		// I/O & C/D
@@ -170,25 +177,25 @@ BYTE FASTCALL SASI_Read(DWORD adr)
 	}
 	else if (adr ==0xe96001)
 	{
-		if ((SASI_Phase==3)&&(SASI_RW))	// ¥Ç¡¼¥¿¥ê¡¼¥ÉÃæ¡Á
+		if ((SASI_Phase==3)&&(SASI_RW))	// ãƒ‡ãƒ¼ã‚¿ãƒªãƒ¼ãƒ‰ä¸­ã€œ
 		{
 			ret = SASI_Buf[SASI_BufPtr++];
 			if (SASI_BufPtr==256)
 			{
 				SASI_Blocks--;
-				if (SASI_Blocks)		// ¤Þ¤ÀÆÉ¤à¥Ö¥í¥Ã¥¯¤¬¤¢¤ë¡©
+				if (SASI_Blocks)		// ã¾ã èª­ã‚€ãƒ–ãƒ­ãƒƒã‚¯ãŒã‚ã‚‹ï¼Ÿ
 				{
 					SASI_Sector++;
 					SASI_BufPtr = 0;
-					result = SASI_Seek();	// ¼¡¤Î¥»¥¯¥¿¤ò¥Ð¥Ã¥Õ¥¡¤ËÆÉ¤à
-					if (!result)		// result=0¡§¥¤¥á¡¼¥¸¤ÎºÇ¸å¡Ê¡áÌµ¸ú¤Ê¥»¥¯¥¿¡Ë¤Ê¤é
+					result = SASI_Seek();	// æ¬¡ã®ã‚»ã‚¯ã‚¿ã‚’ãƒãƒƒãƒ•ã‚¡ã«èª­ã‚€
+					if (!result)		// result=0ï¼šã‚¤ãƒ¡ãƒ¼ã‚¸ã®æœ€å¾Œï¼ˆï¼ç„¡åŠ¹ãªã‚»ã‚¯ã‚¿ï¼‰ãªã‚‰
 					{
 						SASI_Error = 0x0f;
 						SASI_Phase++;
 					}
 				}
 				else
-					SASI_Phase++;		// »ØÄê¥Ö¥í¥Ã¥¯¤Î¥ê¡¼¥É´°Î»
+					SASI_Phase++;		// æŒ‡å®šãƒ–ãƒ­ãƒƒã‚¯ã®ãƒªãƒ¼ãƒ‰å®Œäº†
 			}
 		}
 		else if (SASI_Phase==4)				// Status Phase
@@ -201,15 +208,15 @@ BYTE FASTCALL SASI_Read(DWORD adr)
 		}
 		else if (SASI_Phase==5)				// MessagePhase
 		{
-			SASI_Phase = 0;				// 0¤òÊÖ¤¹¤À¤±¡Á¡£BusFree¤Ëµ¢¤ê¤Þ¤¹
+			SASI_Phase = 0;				// 0ã‚’è¿”ã™ã ã‘ã€œã€‚BusFreeã«å¸°ã‚Šã¾ã™
 		}
-		else if (SASI_Phase==9)				// DataPhase(SenseStatÀìÍÑ)
+		else if (SASI_Phase==9)				// DataPhase(SenseStatå°‚ç”¨)
 		{
 			ret = SASI_SenseStatBuf[SASI_SenseStatPtr++];
 			if (SASI_SenseStatPtr==4)
 			{
 				SASI_Error = 0;
-				SASI_Phase = 4;				// StatusPhase¤Ø
+				SASI_Phase = 4;				// StatusPhaseã¸
 			}
 		}
 		if (SASI_Phase==4)
@@ -232,14 +239,14 @@ fclose(fp);
 }
 
 
-// ¥³¥Þ¥ó¥É¤Î¥Á¥§¥Ã¥¯¡£ÀµÄ¾¡¢InsideX68kÆâ¤Îµ­½Ò¤Ç¤Ï¤Á¤ÈÂ­¤ê¤Ê¤¤ ^^;¡£
-// Ì¤µ­½Ò¤Î¤â¤Î¤È¤·¤Æ¡¢
-//   - C2h¡Ê½é´ü²½·Ï¡©¡Ë¡£Unit°Ê³°¤Î¥Ñ¥é¥á¡¼¥¿¤ÏÌµ¤·¡£DataPhase¤Ç10¸Ä¤Î¥Ç¡¼¥¿¤ò½ñ¤­¤³¤à¡£
-//   - 06h¡Ê¥Õ¥©¡¼¥Þ¥Ã¥È¡©¡Ë¡£ÏÀÍý¥Ö¥í¥Ã¥¯»ØÄê¤¢¤ê¡Ê21h¤ª¤­¤Ë»ØÄê¤·¤Æ¤¤¤ë¡Ë¡£¥Ö¥í¥Ã¥¯¿ô¤Î¤È¤³¤Ï6¤¬»ØÄê¤µ¤ì¤Æ¤¤¤ë¡£
+// ã‚³ãƒžãƒ³ãƒ‰ã®ãƒã‚§ãƒƒã‚¯ã€‚æ­£ç›´ã€InsideX68kå†…ã®è¨˜è¿°ã§ã¯ã¡ã¨è¶³ã‚Šãªã„ ^^;ã€‚
+// æœªè¨˜è¿°ã®ã‚‚ã®ã¨ã—ã¦ã€
+//   - C2hï¼ˆåˆæœŸåŒ–ç³»ï¼Ÿï¼‰ã€‚Unitä»¥å¤–ã®ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã¯ç„¡ã—ã€‚DataPhaseã§10å€‹ã®ãƒ‡ãƒ¼ã‚¿ã‚’æ›¸ãã“ã‚€ã€‚
+//   - 06hï¼ˆãƒ•ã‚©ãƒ¼ãƒžãƒƒãƒˆï¼Ÿï¼‰ã€‚è«–ç†ãƒ–ãƒ­ãƒƒã‚¯æŒ‡å®šã‚ã‚Šï¼ˆ21hãŠãã«æŒ‡å®šã—ã¦ã„ã‚‹ï¼‰ã€‚ãƒ–ãƒ­ãƒƒã‚¯æ•°ã®ã¨ã“ã¯6ãŒæŒ‡å®šã•ã‚Œã¦ã„ã‚‹ã€‚
 void SASI_CheckCmd(void)
 {
 	short result;
-	SASI_Unit = (SASI_Cmd[1]>>5)&1;			// X68k¤Ç¤Ï¡¢¥æ¥Ë¥Ã¥ÈÈÖ¹æ¤Ï0¤«1¤·¤«¼è¤ì¤Ê¤¤
+	SASI_Unit = (SASI_Cmd[1]>>5)&1;			// X68kã§ã¯ã€ãƒ¦ãƒ‹ãƒƒãƒˆç•ªå·ã¯0ã‹1ã—ã‹å–ã‚Œãªã„
 
 	switch(SASI_Cmd[0])
 	{
@@ -354,6 +361,12 @@ void FASTCALL SASI_Write(DWORD adr, BYTE data)
 	int i;
 	BYTE bit;
 
+	/* Internal SCSI registers ($E96020-$E9603F) */
+	if (adr >= 0xe96020 && adr <= 0xe9603f) {
+		SCSI_Internal_Write(adr, data);
+		return;
+	}
+
 if (hddtrace&&((SASI_Phase!=3)||(adr!=0xe96001))) {
 FILE *fp;
 fp=fopen("_trace68.txt", "a");
@@ -407,38 +420,38 @@ fclose(fp);
 		if (SASI_Phase==2)
 		{
 			SASI_Cmd[SASI_CmdPtr++] = data;
-			if (SASI_CmdPtr==6)			// ¥³¥Þ¥ó¥ÉÈ¯¹Ô½ªÎ»
+			if (SASI_CmdPtr==6)			// ã‚³ãƒžãƒ³ãƒ‰ç™ºè¡Œçµ‚äº†
 			{
 //				SASI_Phase++;
 				SASI_CheckCmd();
 			}
 		}
-		else if ((SASI_Phase==3)&&(!SASI_RW))		// ¥Ç¡¼¥¿¥é¥¤¥ÈÃæ¡Á
+		else if ((SASI_Phase==3)&&(!SASI_RW))		// ãƒ‡ãƒ¼ã‚¿ãƒ©ã‚¤ãƒˆä¸­ã€œ
 		{
 			SASI_Buf[SASI_BufPtr++] = data;
 			if (SASI_BufPtr==256)
 			{
-				result = SASI_Flush();		// ¸½ºß¤Î¥Ð¥Ã¥Õ¥¡¤ò½ñ¤­½Ð¤¹
+				result = SASI_Flush();		// ç¾åœ¨ã®ãƒãƒƒãƒ•ã‚¡ã‚’æ›¸ãå‡ºã™
 				SASI_Blocks--;
-				if (SASI_Blocks)		// ¤Þ¤À½ñ¤¯¥Ö¥í¥Ã¥¯¤¬¤¢¤ë¡©
+				if (SASI_Blocks)		// ã¾ã æ›¸ããƒ–ãƒ­ãƒƒã‚¯ãŒã‚ã‚‹ï¼Ÿ
 				{
 					SASI_Sector++;
 					SASI_BufPtr = 0;
-					result = SASI_Seek();	// ¼¡¤Î¥»¥¯¥¿¤ò¥Ð¥Ã¥Õ¥¡¤ËÆÉ¤à
-					if (!result)		// result=0¡§¥¤¥á¡¼¥¸¤ÎºÇ¸å¡Ê¡áÌµ¸ú¤Ê¥»¥¯¥¿¡Ë¤Ê¤é
+					result = SASI_Seek();	// æ¬¡ã®ã‚»ã‚¯ã‚¿ã‚’ãƒãƒƒãƒ•ã‚¡ã«èª­ã‚€
+					if (!result)		// result=0ï¼šã‚¤ãƒ¡ãƒ¼ã‚¸ã®æœ€å¾Œï¼ˆï¼ç„¡åŠ¹ãªã‚»ã‚¯ã‚¿ï¼‰ãªã‚‰
 					{
 						SASI_Error = 0x0f;
 						SASI_Phase++;
 					}
 				}
 				else
-					SASI_Phase++;		// »ØÄê¥Ö¥í¥Ã¥¯¤Î¥é¥¤¥È´°Î»
+					SASI_Phase++;		// æŒ‡å®šãƒ–ãƒ­ãƒƒã‚¯ã®ãƒ©ã‚¤ãƒˆå®Œäº†
 			}
 		}
 		else if (SASI_Phase==10)
 		{
 			SASI_SenseStatPtr++;
-			if (SASI_SenseStatPtr==10)			// ¥³¥Þ¥ó¥ÉÈ¯¹Ô½ªÎ»
+			if (SASI_SenseStatPtr==10)			// ã‚³ãƒžãƒ³ãƒ‰ç™ºè¡Œçµ‚äº†
 			{
 				SASI_Phase = 4;
 			}

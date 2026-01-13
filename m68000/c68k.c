@@ -14,14 +14,14 @@
 
 
 /******************************************************************************
-	マクロ
+	
 ******************************************************************************/
 
 #include "c68kmacro.h"
 
 
 /******************************************************************************
-	グローバル構造体
+	
 ******************************************************************************/
 
 c68k_struc C68K;
@@ -29,7 +29,7 @@ int m68000_ICountBk;
 int ICount;
 
 /******************************************************************************
-	ローカル変数
+	
 ******************************************************************************/
 
 static void *JumpTable[0x10000];
@@ -37,11 +37,11 @@ static UINT8 c68k_bad_address[1 << C68K_FETCH_SFT];
 
 
 /******************************************************************************
-	ローカル関数
+	
 ******************************************************************************/
 
 /*--------------------------------------------------------
-	割り込みコールバック
+	
 --------------------------------------------------------*/
 
 static INT32 C68k_InterruptCallback(INT32 line)
@@ -51,7 +51,7 @@ static INT32 C68k_InterruptCallback(INT32 line)
 
 
 /*--------------------------------------------------------
-	リセットコールバック
+	
 --------------------------------------------------------*/
 
 static void C68k_ResetCallback(void)
@@ -60,11 +60,11 @@ static void C68k_ResetCallback(void)
 
 
 /******************************************************************************
-	C68Kインタフェース関数
+	C68K
 ******************************************************************************/
 
 /*--------------------------------------------------------
-	CPU初期化
+	CPU
 --------------------------------------------------------*/
 
 void C68k_Init(c68k_struc *CPU)
@@ -79,31 +79,31 @@ void C68k_Init(c68k_struc *CPU)
 	memset(c68k_bad_address, 0xff, sizeof(c68k_bad_address));
 
 	for (i = 0; i < C68K_FETCH_BANK; i++)
-		CPU->Fetch[i] = (UINT32)c68k_bad_address;
+		CPU->Fetch[i] = (uintptr_t)c68k_bad_address;
 
 	C68k_Exec(NULL, 0);
 }
 
 
 /*--------------------------------------------------------
-	CPUリセット
+	CPU
 --------------------------------------------------------*/
 
 void C68k_Reset(c68k_struc *CPU)
 {
-	UINT32 PC;
+	uintptr_t PC;
 
-	memset(CPU, 0, (UINT32)&CPU->BasePC - (UINT32)CPU);
+	memset(CPU, 0, (uintptr_t)&CPU->BasePC - (uintptr_t)CPU);
 
 	CPU->flag_I = 7;
 	CPU->flag_S = C68K_SR_S;
 
-	// SP, PCの初期化はWinX68k_Reset()側で実行する
+	// SP, PCWinX68k_Reset()
 }
 
 
 /*--------------------------------------------------------
-	CPU実行
+	CPU
 --------------------------------------------------------*/
 
 extern DWORD BusErrHandling;
@@ -113,12 +113,12 @@ INT32 C68k_Exec(c68k_struc *CPU, INT32 cycles)
 {
 	if (CPU)
 	{
-		UINT32 PC;
+		uintptr_t PC;
 		UINT32 Opcode;
 		UINT32 adr;
 		UINT32 res;
-		UINT32 src;
-		UINT32 dst;
+		uintptr_t src;  // Changed for 64-bit pointer operations in MOVEM
+		uintptr_t dst;  // Changed for 64-bit pointer operations in MOVEM
 
 		PC = CPU->PC;
 		CPU->ICount = cycles;
@@ -133,7 +133,6 @@ C68k_Exec_Next:
 			{
 
 				if (BusErrHandling) {
-					printf("BusError occured\n");
 					SWAP_SP();
 					PUSH_32_F(GET_PC() - 2);
 					PUSH_16_F(GET_SR());
@@ -169,7 +168,7 @@ C68k_Exec_Next:
 
 
 /*--------------------------------------------------------
-	割り込み処理
+	
 --------------------------------------------------------*/
 
 void C68k_Set_IRQ(c68k_struc *CPU, INT32 line, INT32 state)
@@ -188,7 +187,7 @@ void C68k_Set_IRQ(c68k_struc *CPU, INT32 line, INT32 state)
 
 
 /*--------------------------------------------------------
-	レジスタ取得
+	
 --------------------------------------------------------*/
 
 UINT32 C68k_Get_Reg(c68k_struc *CPU, INT32 regnum)
@@ -221,7 +220,7 @@ UINT32 C68k_Get_Reg(c68k_struc *CPU, INT32 regnum)
 
 
 /*--------------------------------------------------------
-	レジスタ設定
+	
 --------------------------------------------------------*/
 
 void C68k_Set_Reg(c68k_struc *CPU, INT32 regnum, UINT32 val)
@@ -268,10 +267,10 @@ void C68k_Set_Reg(c68k_struc *CPU, INT32 regnum, UINT32 val)
 
 
 /*--------------------------------------------------------
-	フェッチアドレス設定
+	
 --------------------------------------------------------*/
 
-void C68k_Set_Fetch(c68k_struc *CPU, UINT32 low_adr, UINT32 high_adr, UINT32 fetch_adr)
+void C68k_Set_Fetch(c68k_struc *CPU, UINT32 low_adr, UINT32 high_adr, uintptr_t fetch_adr)
 {
 	UINT32 i, j;
 
@@ -283,7 +282,7 @@ void C68k_Set_Fetch(c68k_struc *CPU, UINT32 low_adr, UINT32 high_adr, UINT32 fet
 
 
 /*--------------------------------------------------------
-	メモリリード/ライト関数設定
+	/
 --------------------------------------------------------*/
 
 void C68k_Set_ReadB(c68k_struc *CPU, UINT8 (*Func)(UINT32 address))
@@ -320,7 +319,7 @@ void C68k_Set_WriteW(c68k_struc *CPU, void (*Func)(UINT32 address, UINT16 data))
 
 
 /*--------------------------------------------------------
-	コールバック関数設定
+	
 --------------------------------------------------------*/
 
 void C68k_Set_IRQ_Callback(c68k_struc *CPU, INT32 (*Func)(INT32 irqline))

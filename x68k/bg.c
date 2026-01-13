@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------------------------
-//  BG.C - BGとスプライト
-//  ToDo：透明色の処理チェック（特に対Text間）
+// BG.C - BG
+// ToDoText
 // ---------------------------------------------------------------------------------------
 
 #include "common.h"
@@ -40,9 +40,13 @@
 
 	DWORD	VLINEBG = 0;
 
+// X68000 hardware limitation: maximum 16 sprites per scanline
+#define SPRITES_PER_SCANLINE_LIMIT 16
+	int	Sprite_CountPerLine = 0;  // sprites drawn on current scanline
+
 
 // -----------------------------------------------------------------------
-//   初期化
+// 
 // -----------------------------------------------------------------------
 void BG_Init(void)
 {
@@ -203,7 +207,7 @@ void FASTCALL BG_Write(DWORD adr, BYTE data)
 	else if ((adr>=0xeb0800)&&(adr<0xeb0812))
 	{
 		adr -= 0xeb0800;
-		if (BG_Regs[adr]==data) return;	// データに変化が無ければ帰る
+		if (BG_Regs[adr]==data) return;
 		BG_Regs[adr] = data;
 		switch(adr)
 		{
@@ -233,11 +237,11 @@ void FASTCALL BG_Write(DWORD adr, BYTE data)
 			break;
 
 		case 0x0d:
-			BG_HAdjust = ((long)BG_Regs[0x0d]-(CRTC_HSTART+4))*8;				// 水平方向は解像度による1/2はいらない？（Tetris）
+			BG_HAdjust = ((long)BG_Regs[0x0d]-(CRTC_HSTART+4))*8;				// 1/2Tetris
 			TVRAM_SetAllDirty();
 			break;
 		case 0x0f:
-			BG_VLINE = ((long)BG_Regs[0x0f]-CRTC_VSTART)/((BG_Regs[0x11]&4)?1:2);	// BGとその他がずれてる時の差分
+			BG_VLINE = ((long)BG_Regs[0x0f]-CRTC_VSTART)/((BG_Regs[0x11]&4)?1:2);	// BG
 			TVRAM_SetAllDirty();
 			break;
 
@@ -255,8 +259,8 @@ void FASTCALL BG_Write(DWORD adr, BYTE data)
 				BG_CHREND = 0x2000;
 			BG_CHRSIZE = ((data&3)?16:8);
 			BG_AdrMask = ((data&3)?1023:511);
-			BG_HAdjust = ((long)BG_Regs[0x0d]-(CRTC_HSTART+4))*8;				// 水平方向は解像度による1/2はいらない？（Tetris）
-			BG_VLINE = ((long)BG_Regs[0x0f]-CRTC_VSTART)/((BG_Regs[0x11]&4)?1:2);	// BGとその他がずれてる時の差分
+			BG_HAdjust = ((long)BG_Regs[0x0d]-(CRTC_HSTART+4))*8;				// 1/2Tetris
+			BG_VLINE = ((long)BG_Regs[0x0f]-CRTC_VSTART)/((BG_Regs[0x11]&4)?1:2);	// BG
 			break;
 		case 0x09:		// BG Plane Cfg Changed
 			TVRAM_SetAllDirty();
@@ -309,7 +313,7 @@ void FASTCALL BG_Write(DWORD adr, BYTE data)
 	else if ((adr>=0xeb8000)&&(adr<0xec0000))
 	{
 		adr -= 0xeb8000;
-		if (BG[adr]==data) return;			// データに変化が無ければ帰る
+		if (BG[adr]==data) return;
 		BG[adr] = data;
 		if (adr<0x2000)
 		{
@@ -320,15 +324,15 @@ void FASTCALL BG_Write(DWORD adr, BYTE data)
 		BGCHR16[bg16chr]   = data>>4;
 		BGCHR16[bg16chr+1] = data&15;
 
-		if (adr<BG_CHREND)				// パターンエリア
+		if (adr<BG_CHREND)
 		{
 			TVRAM_SetAllDirty();
 		}
-		if ((adr>=BG_BG1TOP)&&(adr<BG_BG1END))	// BG1 MAPエリア
+		if ((adr>=BG_BG1TOP)&&(adr<BG_BG1END))	// BG1 MAP
 		{
 			TVRAM_SetAllDirty();
 		}
-		if ((adr>=BG_BG0TOP)&&(adr<BG_BG0END))	// BG0 MAPエリア
+		if ((adr>=BG_BG0TOP)&&(adr<BG_BG0END))	// BG0 MAP
 		{
 			TVRAM_SetAllDirty();
 		}
@@ -340,7 +344,7 @@ void FASTCALL BG_Write(DWORD adr, BYTE data)
 #endif
 
 // -----------------------------------------------------------------------
-//   1ライン分の描画
+// 1
 // -----------------------------------------------------------------------
 #ifdef USE_ASM
 #include	"bg.x86"
@@ -365,7 +369,7 @@ LABEL void FASTCALL BG_DrawLine(int opaq, int gd) {
 			shr	ecx, 1
 		BGLineClr_lp:
 			mov	dword ptr BG_LineBuf[edi], eax
-			mov	dword ptr BG_PriBuf[edi], ebx	// SP間のプライオリティ情報初期化
+			mov	dword ptr BG_PriBuf[edi], ebx	// SP
 			add	edi, 4
 			loop	BGLineClr_lp
 			jmp	bgclrloopend
@@ -374,7 +378,7 @@ LABEL void FASTCALL BG_DrawLine(int opaq, int gd) {
 			mov	ecx, TextDotX
 			shr	ecx, 1
 		BGLineClr_lp2:
-			mov	dword ptr BG_PriBuf[edi], ebx	// SP間のプライオリティ情報初期化
+			mov	dword ptr BG_PriBuf[edi], ebx	// SP
 			add	edi, 4
 			loop	BGLineClr_lp2
 
@@ -470,6 +474,10 @@ Sprite_DrawLineMcr(int pri)
 	int n;
 
 	for (n = 127; n >= 0; --n) {
+		// Check sprite per scanline limit (X68000 hardware limitation)
+		if (Sprite_CountPerLine >= SPRITES_PER_SCANLINE_LIMIT)
+			break;
+
 		if ((sct[n].sprite_ply & 3) == pri) {
 			SPRITECTRLTBL_T *sctp = &sct[n];
 
@@ -489,7 +497,10 @@ Sprite_DrawLineMcr(int pri)
 				DWORD pal;
 				int i, d;
 				BYTE bh, dat;
-				
+
+				// Count this sprite as visible on this scanline
+				Sprite_CountPerLine++;
+
 				if (sctp->sprite_ctrl < 0x4000) {
 					p = &BGCHR16[((sctp->sprite_ctrl * 256) & 0xffff)  + (y * 16)];
 					d = 1;
@@ -656,6 +667,9 @@ BG_DrawLine(int opaq, int gd)
 {
 	int i;
 	void (*func8)(WORD, DWORD, DWORD), (*func16)(WORD, DWORD, DWORD);
+
+	// Reset sprite per scanline counter at start of each line
+	Sprite_CountPerLine = 0;
 
 	if (opaq) {
 		for (i = 16; i < TextDotX + 16; ++i) {

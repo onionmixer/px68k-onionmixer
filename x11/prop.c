@@ -24,7 +24,7 @@
  */
 
 /* -------------------------------------------------------------------------- *
- *  PROP.C - 各種設定用プロパティシートと設定値管理                           *
+ * PROP.C - *
  * -------------------------------------------------------------------------- */
 
 #include <sys/stat.h>
@@ -355,6 +355,12 @@ void LoadConfig(void)
 		GetPrivateProfileString(ini_title, buf, "", Config.HDImage[i], MAX_PATH, winx68k_ini);
 	}
 
+	/* ROM paths - load last used values */
+	GetPrivateProfileString(ini_title, "IplromPath", "", Config.IplromPath, MAX_PATH, winx68k_ini);
+	GetPrivateProfileString(ini_title, "CgromPath", "", Config.CgromPath, MAX_PATH, winx68k_ini);
+	GetPrivateProfileString(ini_title, "ScsiExtRomPath", "", Config.ScsiExtRomPath, MAX_PATH, winx68k_ini);
+	GetPrivateProfileString(ini_title, "ScsiIntRomPath", "", Config.ScsiIntRomPath, MAX_PATH, winx68k_ini);
+
 #if 0
 	fp = File_OpenCurDir(KEYCONFFILE);
 	if (fp)
@@ -482,7 +488,6 @@ void SaveConfig(void)
 
 	for (i = 0; i < 2; i++)
 	{
-		printf("i: %d", i);
 		sprintf(buf, "FDD%d", i);
 		WritePrivateProfileString(ini_title, buf, Config.FDDImage[i], winx68k_ini);
 	}
@@ -492,6 +497,12 @@ void SaveConfig(void)
 		sprintf(buf, "HDD%d", i);
 		WritePrivateProfileString(ini_title, buf, Config.HDImage[i], winx68k_ini);
 	}
+
+	/* ROM paths - save for next session */
+	WritePrivateProfileString(ini_title, "IplromPath", Config.IplromPath, winx68k_ini);
+	WritePrivateProfileString(ini_title, "CgromPath", Config.CgromPath, winx68k_ini);
+	WritePrivateProfileString(ini_title, "ScsiExtRomPath", Config.ScsiExtRomPath, winx68k_ini);
+	WritePrivateProfileString(ini_title, "ScsiIntRomPath", Config.ScsiIntRomPath, winx68k_ini);
 
 #if 0
 	fp = File_OpenCurDir(KEYCONFFILE);
@@ -605,7 +616,7 @@ PropPage_Init(void)
 	    gtk_label_new("Others"));
 	gtk_widget_show(note);
 
-	/* ページ下部ボタン */
+	/* */
 	ok_button = gtk_button_new_with_label("OK");
 	gtk_table_attach_defaults(GTK_TABLE(dialog_table), ok_button,
 	    1, 2, 9, 10);

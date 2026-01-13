@@ -59,8 +59,6 @@ void Mouse_Init(void)
 // ----------------------------------
 void Mouse_Event(int param, float dx, float dy)
 {
-	printf("ME(): %f %f\n", dx, dy);
-
 	if (MouseSW) {
 		switch (param) {
 		case 0:	// mouse move

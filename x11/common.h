@@ -4,6 +4,7 @@
 #include "windows.h"
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 
 #ifdef __APPLE__
 #include "TargetConditionals.h"

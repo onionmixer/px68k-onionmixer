@@ -120,15 +120,15 @@ typedef struct c68k_t
 	UINT32 flag_S;
 
 	UINT32 USP;
-	UINT32 PC;
+	uintptr_t PC;  // Changed from UINT32 for 64-bit compatibility
 
 	UINT32 HaltState;
 	INT32 IRQLine;
 	INT32 IRQState;
 	INT32 ICount;
 
-	UINT32 BasePC;
-	UINT32 Fetch[C68K_FETCH_BANK];
+	uintptr_t BasePC;
+	uintptr_t Fetch[C68K_FETCH_BANK];
 
 	UINT8  (*Read_Byte)(UINT32 address);
 	UINT16 (*Read_Word)(UINT32 address);
@@ -163,7 +163,7 @@ void C68k_Set_IRQ(c68k_struc *cpu, INT32 line, INT32 state);
 UINT32  C68k_Get_Reg(c68k_struc *cpu, INT32 regnum);
 void C68k_Set_Reg(c68k_struc *cpu, INT32 regnum, UINT32 val);
 
-void C68k_Set_Fetch(c68k_struc *cpu, UINT32 low_adr, UINT32 high_adr, UINT32 fetch_adr);
+void C68k_Set_Fetch(c68k_struc *cpu, UINT32 low_adr, UINT32 high_adr, uintptr_t fetch_adr);
 
 void C68k_Set_ReadB(c68k_struc *cpu, UINT8 (*Func)(UINT32 address));
 void C68k_Set_ReadW(c68k_struc *cpu, UINT16 (*Func)(UINT32 address));

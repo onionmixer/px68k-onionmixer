@@ -152,6 +152,7 @@ BYTE Joystick_get_vbtn_state(WORD n)
 
 #ifndef PSP
 SDL_Joystick *sdl_joy;
+SDL_GameController *sdl_gamecontroller;
 #endif
 
 void Joystick_Init(void)
@@ -177,30 +178,42 @@ void Joystick_Init(void)
 #endif
 
 #ifndef PSP
-	sdl_joy = 0;
+	sdl_joy = NULL;
+	sdl_gamecontroller = NULL;
 
-	SDL_InitSubSystem(SDL_INIT_JOYSTICK);
+	SDL_InitSubSystem(SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER);
 
 	nr_joys = SDL_NumJoysticks();
 	p6logd("joy num %d\n", nr_joys);
+
 	for (i = 0; i < nr_joys; i++) {
+		// Try GameController API first (provides standardized mapping)
+		if (SDL_IsGameController(i)) {
+			sdl_gamecontroller = SDL_GameControllerOpen(i);
+			if (sdl_gamecontroller) {
+				p6logd("GameController: %s\n", SDL_GameControllerName(sdl_gamecontroller));
+				// Get underlying joystick for compatibility
+				sdl_joy = SDL_GameControllerGetJoystick(sdl_gamecontroller);
+				break;
+			}
+		}
+
+		// Fall back to Joystick API
 		sdl_joy = SDL_JoystickOpen(i);
 		if (sdl_joy) {
 			nr_btns = SDL_JoystickNumButtons(sdl_joy);
 			nr_axes = SDL_JoystickNumAxes(sdl_joy);
 			nr_hats = SDL_JoystickNumHats(sdl_joy);
 
-#if SDL_VERSION_ATLEAST(2, 0, 0)
-			p6logd("Name: %s\n", SDL_JoystickNameForIndex(i));
-#endif
+			p6logd("Joystick: %s\n", SDL_JoystickNameForIndex(i));
 			p6logd("# of Axes: %d\n", nr_axes);
 			p6logd("# of Btns: %d\n", nr_btns);
 			p6logd("# of Hats: %d\n", nr_hats);
 
 			// skip accelerometer and keyboard
 			if (nr_btns < 2 || (nr_axes < 2 && nr_hats == 0)) {
-				Joystick_Cleanup();
-				sdl_joy = 0;
+				SDL_JoystickClose(sdl_joy);
+				sdl_joy = NULL;
 			} else {
 				break;
 			}
@@ -214,13 +227,14 @@ void Joystick_Init(void)
 void Joystick_Cleanup(void)
 {
 #ifndef PSP
-#if SDL_VERSION_ATLEAST(2, 0, 0)
-	if (SDL_JoystickGetAttached(sdl_joy)) {
+	if (sdl_gamecontroller) {
+		SDL_GameControllerClose(sdl_gamecontroller);
+		sdl_gamecontroller = NULL;
+		sdl_joy = NULL;  // Owned by GameController, already closed
+	} else if (sdl_joy && SDL_JoystickGetAttached(sdl_joy)) {
 		SDL_JoystickClose(sdl_joy);
+		sdl_joy = NULL;
 	}
-#else
-	SDL_JoystickClose(sdl_joy);
-#endif
 #endif
 }
 
@@ -405,8 +419,71 @@ skip_vpad:
 
 #endif //defined(ANDROID) || TARGET_OS_IPHONE
 
-	// Hardware Joystick
-	if (sdl_joy) {
+	// Hardware Controller/Joystick
+	if (sdl_gamecontroller) {
+		// Use SDL GameController API (standardized mapping)
+		SDL_GameControllerUpdate();
+
+		// D-pad via left stick
+		x = SDL_GameControllerGetAxis(sdl_gamecontroller, SDL_CONTROLLER_AXIS_LEFTX);
+		y = SDL_GameControllerGetAxis(sdl_gamecontroller, SDL_CONTROLLER_AXIS_LEFTY);
+
+		if (x < -JOYAXISPLAY) {
+			ret0 ^= JOY_LEFT;
+		}
+		if (x > JOYAXISPLAY) {
+			ret0 ^= JOY_RIGHT;
+		}
+		if (y < -JOYAXISPLAY) {
+			ret0 ^= JOY_UP;
+		}
+		if (y > JOYAXISPLAY) {
+			ret0 ^= JOY_DOWN;
+		}
+
+		// D-pad buttons
+		if (SDL_GameControllerGetButton(sdl_gamecontroller, SDL_CONTROLLER_BUTTON_DPAD_UP)) {
+			ret0 ^= JOY_UP;
+		}
+		if (SDL_GameControllerGetButton(sdl_gamecontroller, SDL_CONTROLLER_BUTTON_DPAD_DOWN)) {
+			ret0 ^= JOY_DOWN;
+		}
+		if (SDL_GameControllerGetButton(sdl_gamecontroller, SDL_CONTROLLER_BUTTON_DPAD_LEFT)) {
+			ret0 ^= JOY_LEFT;
+		}
+		if (SDL_GameControllerGetButton(sdl_gamecontroller, SDL_CONTROLLER_BUTTON_DPAD_RIGHT)) {
+			ret0 ^= JOY_RIGHT;
+		}
+
+		// Face buttons: A/B for TRG1/TRG2, X/Y for TRG3/TRG4
+		if (SDL_GameControllerGetButton(sdl_gamecontroller, SDL_CONTROLLER_BUTTON_A)) {
+			ret0 ^= JOY_TRG1;
+		}
+		if (SDL_GameControllerGetButton(sdl_gamecontroller, SDL_CONTROLLER_BUTTON_B)) {
+			ret0 ^= JOY_TRG2;
+		}
+		if (SDL_GameControllerGetButton(sdl_gamecontroller, SDL_CONTROLLER_BUTTON_X)) {
+			ret1 ^= JOY_TRG3;
+		}
+		if (SDL_GameControllerGetButton(sdl_gamecontroller, SDL_CONTROLLER_BUTTON_Y)) {
+			ret1 ^= JOY_TRG4;
+		}
+		// Shoulder buttons: LB/RB for TRG5/TRG6
+		if (SDL_GameControllerGetButton(sdl_gamecontroller, SDL_CONTROLLER_BUTTON_LEFTSHOULDER)) {
+			ret1 ^= JOY_TRG5;
+		}
+		if (SDL_GameControllerGetButton(sdl_gamecontroller, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER)) {
+			ret1 ^= JOY_TRG6;
+		}
+		// Triggers: LT/RT for TRG7/TRG8
+		if (SDL_GameControllerGetAxis(sdl_gamecontroller, SDL_CONTROLLER_AXIS_TRIGGERLEFT) > 16384) {
+			ret1 ^= JOY_TRG7;
+		}
+		if (SDL_GameControllerGetAxis(sdl_gamecontroller, SDL_CONTROLLER_AXIS_TRIGGERRIGHT) > 16384) {
+			ret1 ^= JOY_TRG8;
+		}
+	} else if (sdl_joy) {
+		// Fallback to raw Joystick API
 		SDL_JoystickUpdate();
 		x = SDL_JoystickGetAxis(sdl_joy, Config.HwJoyAxis[0]);
 		y = SDL_JoystickGetAxis(sdl_joy, Config.HwJoyAxis[1]);
@@ -430,21 +507,25 @@ skip_vpad:
 			switch (hat) {
 			case SDL_HAT_RIGHTUP:
 				ret0 ^= JOY_RIGHT;
+				/* fall through */
 			case SDL_HAT_UP:
 				ret0 ^= JOY_UP;
 				break;
 			case SDL_HAT_RIGHTDOWN:
 				ret0 ^= JOY_DOWN;
+				/* fall through */
 			case SDL_HAT_RIGHT:
 				ret0 ^= JOY_RIGHT;
 				break;
 			case SDL_HAT_LEFTUP:
 				ret0 ^= JOY_UP;
+				/* fall through */
 			case SDL_HAT_LEFT:
 				ret0 ^= JOY_LEFT;
 				break;
 			case SDL_HAT_LEFTDOWN:
 				ret0 ^= JOY_LEFT;
+				/* fall through */
 			case SDL_HAT_DOWN:
 				ret0 ^= JOY_DOWN;
 				break;

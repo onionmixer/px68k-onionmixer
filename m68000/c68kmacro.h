@@ -2,7 +2,7 @@
 
 	c68kmacro.h
 
-	C68K 各種マクロ
+	C68K 
 
 ******************************************************************************/
 
@@ -138,9 +138,11 @@
 #define GET_PC()				(PC - CPU->BasePC)
 
 #define SET_PC(A)															\
-	CPU->BasePC = CPU->Fetch[((A) >> C68K_FETCH_SFT) & C68K_FETCH_MASK];	\
-	CPU->BasePC -= (A) & 0xff000000;										\
-	PC = (A) + CPU->BasePC;
+{																			\
+	UINT32 _addr = (A) & 0xFFFFFF; /* M68000 24-bit address mask */			\
+	CPU->BasePC = CPU->Fetch[(_addr >> C68K_FETCH_SFT) & C68K_FETCH_MASK];	\
+	PC = _addr + CPU->BasePC;												\
+}
 
 #define ADJUST_PC()				PC -= CPU->BasePC;
 
@@ -206,7 +208,7 @@
 	}
 
 /******************************************************************************
-	c68k_op用マクロ
+	c68k_op
 ******************************************************************************/
 
 /*------------------------------- opcode macros -----------------------------*/
@@ -1085,7 +1087,7 @@
 {																			\
 	EA_READ_I(16, NA, res)													\
 	EA_##mode(NA, Y)														\
-	src = (UINT32)(&D0);													\
+	src = (uintptr_t)(&D0);													\
 	dst = adr;																\
 	do																		\
 	{																		\
@@ -1103,7 +1105,7 @@
 {																			\
 	EA_READ_I(16, NA, res)													\
 	adr = A##y;																\
-	src = (UINT32)(&A7);													\
+	src = (uintptr_t)(&A7);													\
 	dst = adr;																\
 	do																		\
 	{																		\
@@ -1122,7 +1124,7 @@
 {																			\
 	EA_READ_I(16, NA, res)													\
 	EA_##mode(NA, Y)														\
-	src = (UINT32)(&D0);													\
+	src = (uintptr_t)(&D0);													\
 	dst = adr;																\
 	do																		\
 	{																		\
@@ -1140,7 +1142,7 @@
 {																			\
 	EA_READ_I(16, NA, res)													\
 	adr = A##y;																\
-	src = (UINT32)(&D0);													\
+	src = (uintptr_t)(&D0);													\
 	dst = adr;																\
 	do																		\
 	{																		\

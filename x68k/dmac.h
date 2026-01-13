@@ -39,11 +39,16 @@ typedef struct
 
 extern dmac_ch	DMA[4];
 
+// DMA cycle timing - transfers per scanline
+#define DMA_TRANSFERS_PER_CALL  16  // Maximum transfers per DMA_Exec call
+#define DMA_BURST_TRANSFERS     256 // Burst mode transfers per call
+
 DWORD FASTCALL DMA_Int(BYTE irq);
 BYTE FASTCALL DMA_Read(DWORD adr);
 void FASTCALL DMA_Write(DWORD adr, BYTE data);
 
 int FASTCALL DMA_Exec(int ch);
+int FASTCALL DMA_ExecCycles(int ch, int max_transfers);
 void DMA_Init(void);
 void DMA_SetReadyCB(int ch, int (*func)(void));
 

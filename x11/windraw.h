@@ -21,6 +21,7 @@ void WinDraw_ChangeMode(int flag);
 int WinDraw_Init(void);
 void WinDraw_Cleanup(void);
 void WinDraw_Redraw(void);
+void WinDraw_ToggleFullscreen(void);
 void FASTCALL WinDraw_Draw(void);
 void WinDraw_ShowMenu(int flag);
 void WinDraw_DrawLine(void);
