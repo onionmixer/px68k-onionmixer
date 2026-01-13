@@ -129,8 +129,8 @@ void FASTCALL ADPCM_Update(signed short *buffer, DWORD length, int rate, BYTE *p
 
 		if ( (ADPCM_WrPtr==ADPCM_RdPtr)&&(!(DMA[3].CCR&0x40)) ) DMA_Exec(3);
 		if ( ADPCM_WrPtr!=ADPCM_RdPtr ) {
-			OldR = outr = ADPCM_BufL[ADPCM_RdPtr];
-			OldL = outl = ADPCM_BufR[ADPCM_RdPtr];
+			OldR = outr = ADPCM_BufR[ADPCM_RdPtr];
+			OldL = outl = ADPCM_BufL[ADPCM_RdPtr];
 			ADPCM_RdPtr++;
 			if ( ADPCM_RdPtr>=ADPCM_BufSize ) ADPCM_RdPtr = 0;
 		} else {
@@ -171,10 +171,12 @@ void FASTCALL ADPCM_Update(signed short *buffer, DWORD length, int rate, BYTE *p
 		OutsIpL[3] = outs;
 
 #if 1
-		tmpr = INTERPOLATE(OutsIpR, 0);
+		// Use latest sample (OutsIpR[3], OutsIpL[3]) for proper output
+		// ratio=0 was returning OutsIpR[1] which caused 2-sample delay
+		tmpr = OutsIpR[3];
 		if ( tmpr>32767 ) tmpr = 32767; else if ( tmpr<(-32768) ) tmpr = -32768;
 		*(buffer++) = (short)tmpr;
-		tmpl = INTERPOLATE(OutsIpL, 0);
+		tmpl = OutsIpL[3];
 		if ( tmpl>32767 ) tmpl = 32767; else if ( tmpl<(-32768) ) tmpl = -32768;
 		*(buffer++) = (short)tmpl;
 		// PSP以外はrateは0
