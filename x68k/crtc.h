@@ -30,6 +30,7 @@ extern	DWORD	GrphScrollY[];
 
 void CRTC_Init(void);
 DWORD CRTC_GetVSyncClock(void);
+const char* CRTC_GetDispFreqStr(void);
 
 void CRTC_RasterCopy(void);
 

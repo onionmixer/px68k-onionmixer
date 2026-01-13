@@ -1796,7 +1796,7 @@ void WinDraw_DrawMenu(int menu_state, int mkey_pos, int mkey_y, int *mval_y)
 	set_mfs(24);
 #endif
 
-	// 
+	//
 	if (scr_type == x68k) {
 		set_mcolor(0x07ff); // cyan
 		set_mlocateC(0, 0);
@@ -1808,12 +1808,12 @@ void WinDraw_DrawMenu(int menu_state, int mkey_pos, int mkey_y, int *mval_y)
 
 		set_mcolor(0xffff);
 		set_mlocateC(1, 1);
-		sprintf(tmp, "%s%s", title_str, PX68KVERSTR);
+		sprintf(tmp, "PX68K-onionmixer V %s [%s]", PX68KVERSTR, CRTC_GetDispFreqStr());
 		draw_str(tmp);
 	} else {
 		set_mcolor(0xffff);
 		set_mlocateC(0, 0);
-		sprintf(tmp, "%s%s", pc98_title1_str, PX68KVERSTR);
+		sprintf(tmp, "PX68K-onionmixer V %s [%s]", PX68KVERSTR, CRTC_GetDispFreqStr());
 		draw_str(tmp);
 		set_mlocateC(0, 2);
 		draw_str(pc98_title3_str);

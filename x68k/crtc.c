@@ -66,6 +66,22 @@ DWORD CRTC_GetVSyncClock(void)
 	return VSYNC_NORM;
 }
 
+// -----------------------------------------------------------------------
+//   Get display frequency mode string for UI display
+// -----------------------------------------------------------------------
+const char* CRTC_GetDispFreqStr(void)
+{
+	DWORD vsync = CRTC_GetVSyncClock();
+
+	if (vsync == VSYNC_HIGH) {
+		return "31kHz";
+	} else if (vsync == VSYNC_24K) {
+		return "24kHz";
+	} else {
+		return "15kHz";
+	}
+}
+
 
 // -----------------------------------------------------------------------
 //   らすたーこぴー

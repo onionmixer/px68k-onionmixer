@@ -1,6 +1,6 @@
-# PX68K - 포터블 X68000 에뮬레이터
+# PX68K-onionmixer - 포터블 X68000 에뮬레이터
 
-**PX68K (Portable (x)keropi PRO-68K)**
+**PX68K-onionmixer V 0.20**
 
 2025/01
 
@@ -14,6 +14,9 @@
 6. SCSI disk 지원 추가
 7. SOURCE code 의 locale 변경 (UTF-8)
 8. 2P 조이스틱 동시 지원 추가
+9. 24kHz 디스플레이 모드 지원 추가 (15kHz/24kHz/31kHz)
+10. 메뉴 UI에 현재 디스플레이 모드 표시
+11. SDL2 오디오 출력 수정 (ADPCM/OPM)
 
 몇몇 부분은 mame code 를 참고해서 개선되었습니다.
 
@@ -118,6 +121,14 @@ BIOS ROM, 폰트 파일을 `~/.keropi`에 배치하세요.
 - 설정은 [SYSTEM] → [QUIT]로 에뮬레이터 종료 시 저장됩니다.
 - 설정 초기화: `~/.keropi/config` 파일 삭제
 - 현재 일본어 파일명(UTF-8) 표시가 제대로 되지 않습니다.
+
+**디스플레이 모드 표시**: 메뉴 타이틀에 현재 디스플레이 주파수 모드가 표시됩니다.
+```
+PX68K-onionmixer V 0.20 [31kHz]
+```
+- `[15kHz]`: 표준 해상도 (256라인, TV 호환)
+- `[24kHz]`: 중간 해상도 (512라인 인터레이스)
+- `[31kHz]`: 고해상도 (512라인 프로그레시브, VGA 호환)
 
 ### 2.5 조이스틱
 
@@ -248,8 +259,11 @@ FDD와 동일합니다. SASI HDD 설정용입니다.
 
 ## 저자 정보
 
-**hissorii / sakahi**
+**원본 px68k - hissorii / sakahi**
 - 블로그: http://hissorii.blog45.fc2.com (히소리 닷컴)
 - 블로그: http://emuhani.seesaa.net (에뮤하니 - Emulator Hacking 일기)
 - GitHub: https://github.com/hissorii/px68k
 - Twitter: @hissorii_com
+
+**px68k-onionmixer 포크**
+- GitHub: https://github.com/onionmixer/px68k-onionmixer
