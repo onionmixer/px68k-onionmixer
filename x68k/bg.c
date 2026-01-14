@@ -41,8 +41,10 @@
 	DWORD	VLINEBG = 0;
 
 // X68000 hardware limitation: maximum 16 sprites per scanline
-#define SPRITES_PER_SCANLINE_LIMIT 16
-	int	Sprite_CountPerLine = 0;  // sprites drawn on current scanline
+// NOTE: MAME does not implement this limit, and some games may rely on
+// displaying more sprites. Disabled for better compatibility.
+// #define SPRITES_PER_SCANLINE_LIMIT 16
+// int	Sprite_CountPerLine = 0;  // sprites drawn on current scanline
 
 
 // -----------------------------------------------------------------------
@@ -475,8 +477,9 @@ Sprite_DrawLineMcr(int pri)
 
 	for (n = 127; n >= 0; --n) {
 		// Check sprite per scanline limit (X68000 hardware limitation)
-		if (Sprite_CountPerLine >= SPRITES_PER_SCANLINE_LIMIT)
-			break;
+		// NOTE: Disabled - MAME does not implement this limit
+		// if (Sprite_CountPerLine >= SPRITES_PER_SCANLINE_LIMIT)
+		// 	break;
 
 		if ((sct[n].sprite_ply & 3) == pri) {
 			SPRITECTRLTBL_T *sctp = &sct[n];
@@ -499,7 +502,8 @@ Sprite_DrawLineMcr(int pri)
 				BYTE bh, dat;
 
 				// Count this sprite as visible on this scanline
-				Sprite_CountPerLine++;
+				// NOTE: Disabled - MAME does not implement this limit
+				// Sprite_CountPerLine++;
 
 				if (sctp->sprite_ctrl < 0x4000) {
 					p = &BGCHR16[((sctp->sprite_ctrl * 256) & 0xffff)  + (y * 16)];
@@ -669,7 +673,8 @@ BG_DrawLine(int opaq, int gd)
 	void (*func8)(WORD, DWORD, DWORD), (*func16)(WORD, DWORD, DWORD);
 
 	// Reset sprite per scanline counter at start of each line
-	Sprite_CountPerLine = 0;
+	// NOTE: Disabled - MAME does not implement this limit
+	// Sprite_CountPerLine = 0;
 
 	if (opaq) {
 		for (i = 16; i < TextDotX + 16; ++i) {
