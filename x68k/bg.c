@@ -40,11 +40,36 @@
 
 	DWORD	VLINEBG = 0;
 
-// X68000 hardware limitation: maximum 16 sprites per scanline
-// NOTE: MAME does not implement this limit, and some games may rely on
-// displaying more sprites. Disabled for better compatibility.
-// #define SPRITES_PER_SCANLINE_LIMIT 16
-// int	Sprite_CountPerLine = 0;  // sprites drawn on current scanline
+// -----------------------------------------------------------------------
+//   3MODE sprite limit
+//   X68000 hardware limitation: maximum sprites per scanline
+//   The limit varies by display mode due to horizontal scan time differences:
+//     31kHz: ~317 clocks/line -> 16 sprites max
+//     24kHz: ~400 clocks/line -> 20 sprites max
+//     15kHz: ~626 clocks/line -> 32 sprites max
+//   Calculated proportionally based on HSYNC_CLK (clocks per scanline)
+// -----------------------------------------------------------------------
+#define SPRITE_LIMIT_BASE      16    // Base limit at 31kHz
+#define SPRITE_LIMIT_HSYNC_REF 317   // Reference HSYNC_CLK for 31kHz
+#define SPRITE_LIMIT_MIN       16
+#define SPRITE_LIMIT_MAX       32
+
+static int Sprite_CountPerLine = 0;
+
+// Get maximum sprites per scanline based on current display mode
+static int Sprite_GetScanlineLimit(void)
+{
+	int limit;
+
+	// Calculate limit proportionally: limit = 16 * (HSYNC_CLK / 317)
+	limit = (SPRITE_LIMIT_BASE * HSYNC_CLK) / SPRITE_LIMIT_HSYNC_REF;
+
+	// Clamp to valid range
+	if (limit < SPRITE_LIMIT_MIN) limit = SPRITE_LIMIT_MIN;
+	if (limit > SPRITE_LIMIT_MAX) limit = SPRITE_LIMIT_MAX;
+
+	return limit;
+}
 
 
 // -----------------------------------------------------------------------
@@ -476,9 +501,9 @@ Sprite_DrawLineMcr(int pri)
 	int n;
 
 	for (n = 127; n >= 0; --n) {
-		// Check sprite per scanline limit (X68000 hardware limitation)
+		// 3MODE sprite limit check (X68000 hardware limitation)
 		// NOTE: Disabled - MAME does not implement this limit
-		// if (Sprite_CountPerLine >= SPRITES_PER_SCANLINE_LIMIT)
+		// if (Sprite_CountPerLine >= Sprite_GetScanlineLimit())
 		// 	break;
 
 		if ((sct[n].sprite_ply & 3) == pri) {
@@ -501,7 +526,7 @@ Sprite_DrawLineMcr(int pri)
 				int i, d;
 				BYTE bh, dat;
 
-				// Count this sprite as visible on this scanline
+				// 3MODE sprite limit counter
 				// NOTE: Disabled - MAME does not implement this limit
 				// Sprite_CountPerLine++;
 
@@ -672,7 +697,7 @@ BG_DrawLine(int opaq, int gd)
 	int i;
 	void (*func8)(WORD, DWORD, DWORD), (*func16)(WORD, DWORD, DWORD);
 
-	// Reset sprite per scanline counter at start of each line
+	// 3MODE sprite limit - reset counter at start of each scanline
 	// NOTE: Disabled - MAME does not implement this limit
 	// Sprite_CountPerLine = 0;
 
